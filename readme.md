@@ -2,13 +2,15 @@
 
 ### Objectives
 
-- Declarative syntax for forecast logic
-- Single place (and single column) for formulas to be defined and set up
+- Forecasting done procedurally:
+    - Parametric modeling of input assumptions
+    - Replicable results given the same generation steps and templates
+- Single place (tab templates) for formulas to be defined and set up
 - Discourage/prevent overriding of arbitrary ranges inside the projected periods
 
 ### Sheet Tabs
 
-Tabs preceded with `_` indicate calculation tabs that can be used as templates to be duplicated.
+Tabs preceded with `_` (underscore) indicate calculation tabs that can be used as templates to be duplicated.
 
 There should be a `_steps` tab.
 
@@ -24,11 +26,14 @@ The first column (A) should only contain variable names. A variable name can end
 
 ### Commands
 
-#### Periods
+#### Set
+`set [setting] [value]`
+Set a configuration setting to a given value. The following are the configurable settings:
 
-Set the number of periods (e.g. months) to forecast. Defaults to 12.
+- `periods` - The number of periods (e.g. months) to forecast. Defaults to 12.
 
 #### Build
+`build [source tab]`
 
 Build out an assumption tab. A new tab will be spawned, to keep the original pristine, and the period column will be duplicated to extend its forecast to the appropriate number of periods.
 
@@ -36,7 +41,15 @@ Build out an assumption tab. A new tab will be spawned, to keep the original pri
 `spawn [source tab] [new tab]`
 
 Copies the tab `[source tab]` to `[new tab]`. The new tab will be given the prefix `-` (hyphen) to mark it as a generated tab, and will be deleted on next execution.
+
+`build` will also be performed on the spawned tab.
+
 #### Grow
 `grow [tab] [var] [start period] [end period] [start val] [end val] [method]`
+
+Apply growth onto a variable in a given tab. The variable will be grown from `[start val]` in `[start period]` to `[end val]` in `[end period]`, depending on the `[method]`:
+- `linear` - Straight linear growth
+- `expo` - Use a fixed periodic growth rate
+
 #### Map
 `map [source tab] [source var] [target tab] [target var]`
