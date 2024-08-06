@@ -1,11 +1,11 @@
-from sheet import Sheet, Tab, StepsTab
-import gspread
+from sheet import Sheet
+from commands import Command
 
 sheet = Sheet('1abQSainHd7j44v2Wq8EToCS_5v22rMekwJcUu19mjtE')
-stepsTab = StepsTab(sheet)
 
-stepsTab.readNextCommand()
-stepsTab.readNextCommand()
-stepsTab.readNextCommand()
-stepsTab.readNextCommand()
-stepsTab.readNextCommand()
+cmd = sheet.stepsTab.readNextCommand()
+while cmd is not None:
+    Command(cmd).exec(sheet)
+    cmd = sheet.stepsTab.readNextCommand()
+
+print('✔ Done.')
