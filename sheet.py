@@ -41,11 +41,14 @@ class StepsTab:
     def __init__(self, worksheet: gspread.worksheet.Worksheet):
         self.ref = worksheet
         self.rows = self.ref.get_all_values()
-        self.cursor = 1
+        self.cursor = 0
     def readNextCommand(self) -> List[str]:
         if self.cursor >= len(self.rows):
             return None
         command = self.rows[self.cursor]
+
+        print(f'\n({self.cursor+1}/{len(self.rows)})')
+
         while command[-1] == "":
             command.pop()
         self.cursor += 1

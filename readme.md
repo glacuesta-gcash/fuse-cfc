@@ -1,8 +1,14 @@
 # Cascading Forecasts
 
+### Objectives
+
+- Declarative syntax for forecast logic
+- Single place (and single column) for formulas to be defined and set up
+- Discourage/prevent overriding of arbitrary ranges inside the projected periods
+
 ### Sheet Tabs
 
-Tabs preceded with `_` indicate tabs that can be used as inputs or otherwise manipulated by CFC.
+Tabs preceded with `_` indicate calculation tabs that can be used as templates to be duplicated.
 
 There should be a `_steps` tab.
 
@@ -12,10 +18,19 @@ All other tabs will be ignored.
 
 ### Inside a tab
 
-The first row (1) should only contain period headers (P1, P2, ...).
-The first column (A) should only contain variable names.
+The first row (1) should be blank, except for 1 cell labeled "p" which shall be the one duplicated in order to fill out the forecast periods. This column can contain formulas.
+
+The first column (A) should only contain variable names. A variable name can end with `:x` to indicate a variable that spans multiple rows, where `x` indicates the total number of rows that variable covers.
 
 ### Commands
+
+#### Periods
+
+Set the number of periods (e.g. months) to forecast. Defaults to 12.
+
+#### Build
+
+Build out an assumption tab. A new tab will be spawned, to keep the original pristine, and the period column will be duplicated to extend its forecast to the appropriate number of periods.
 
 #### Spawn
 `spawn [source tab] [new tab]`
