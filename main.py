@@ -15,3 +15,5 @@ worksheet = sheet.get_worksheet(0)
 # Get all values from the first row
 rows = worksheet.row_values(1)
 print(rows)
+
+worksheet.update_cell(2,1,'New value')
