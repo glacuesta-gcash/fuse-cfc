@@ -7,6 +7,7 @@
     - Replicable results given the same generation steps and templates
 - Single place (tab templates) for formulas to be defined and set up
 - Discourage/prevent overriding of arbitrary ranges inside the projected periods
+- Allow easy setup and comparison of multiple scenarios, for high/mid/low building, sensitivity studies, etc.
 
 ### Sheet Tabs
 
@@ -28,7 +29,8 @@ The first column (A) should only contain variable names. A variable name can end
 
 #### Set
 `set [setting] [value]`
-Set a configuration setting to a given value. The following are the configurable settings:
+Set a configuration setting to a given value. The following are the configurable
+ settings:
 
 - `periods` - The number of periods (e.g. months) to forecast. Defaults to 12.
 
