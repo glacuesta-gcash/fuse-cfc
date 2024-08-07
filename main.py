@@ -10,4 +10,6 @@ while cmd is not None:
     Command(cmd).exec(sheet)
     cmd = sheet.stepsTab.readNextCommand()
 
+sheet.summarize()
+
 print(f'\n✔ Done (🕑 {timer.check()})')

@@ -1,8 +1,10 @@
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 import gspread
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
+
+from utils import periodIndex
 
 # Define the scope
 scope = [
@@ -24,17 +26,25 @@ class Sheet:
         print('✔ Connected.')
         self.tabs: Dict[str, Tab] = {}
         self.stepsTab = None
+        self.summaryTab = None
         allSheets = self.ref.worksheets()
         self.rawTabCount = len(allSheets)
 
         self.settings = {
-            'periods': 12
+            'periods': 12,
+            'summary-periods': 12,
+            'summary-start': 'p1'
         }
+        self.summaryVars: List[Tuple[str, str]] = []
 
         for t in allSheets:
             if t.title == '_steps':
                 print('✔ Capturing Steps tab...')
                 self.stepsTab = StepsTab(t)
+            elif t.title == '_summary':
+                print('✔ Capturing Summary tab...')
+                self.summaryTab = Tab(t, self)
+                print(self.summaryTab.vars)
             elif t.title[0] == '_':
                 self.registerTab(t)
             elif t.title[0] == '-':
@@ -44,10 +54,37 @@ class Sheet:
                 print(f'→ Tab "{t.title}" removed.')
         if self.stepsTab == None:
             raise('No Steps tab found!')
+        if self.summaryTab == None:
+            raise('No Summary tab found!')
+
     def registerTab(self, sheet: gspread.worksheet.Worksheet) -> 'Tab':
         newTab = Tab(sheet, self)
         self.tabs[sheet.title[1:]] = newTab # do not include prefix
         return newTab
+
+    def summarize(self):
+        print(self.summaryVars)
+        for sv in self.summaryVars:
+            cellRefs: List[str] = []
+            for t in self.tabs.values():
+                if t.type == 'dynamic':
+                    if sv[0] in t.vars:
+                        print(f'{t.name} has {sv[0]}')
+                        cells = t.getPeriodCellsForRow(t.vars[sv[0]])
+                        cellRefs.append(f'=\'{t.ref.title}\'!{cells[0].address}')
+            print(sv)
+            # add rows
+            baseRow = self.summaryTab.vars[sv[0]]
+            duplicateRow(self.ref, self.summaryTab.ref, baseRow, len(cellRefs))
+            # add cell references
+            cells = t.ref.range(baseRow, t.pcol, baseRow + len(cellRefs) - 1, t.pcol)
+            for i, v in enumerate(cellRefs):
+                cells[i].value = cellRefs[i]
+            self.summaryTab.ref.update_cells(cells, 'USER_ENTERED')
+            # remove original row
+        # extend periods
+        # add summary col groups
+        pass
 
 class Tab:
     def __init__(self, worksheet: gspread.worksheet.Worksheet, sheet: Sheet):
@@ -152,6 +189,49 @@ def duplicateColumn(spreadsheet: gspread.spreadsheet.Spreadsheet, sheet: gspread
                     "endRowIndex": sheet.row_count,
                     "startColumnIndex": sourceCol,
                     "endColumnIndex": sourceCol + times - 1
+                },
+                "pasteType": "PASTE_NORMAL"
+            }
+        }
+    ]
+
+    # Execute the requests
+    body = {
+        'requests': requests
+    }
+
+    response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet.id, body=body).execute()
+
+def duplicateRow(spreadsheet: gspread.spreadsheet.Spreadsheet, sheet: gspread.worksheet.Worksheet, sourceRow: int, times: int = 1):
+    requests = [
+        # Request to insert a new column at index 1 (B)
+        {
+            "insertDimension": {
+                "range": {
+                    "sheetId": sheet.id,
+                    "dimension": "ROWS",
+                    "startIndex": sourceRow,
+                    "endIndex": sourceRow + times - 1
+                },
+                "inheritFromBefore": True
+            }
+        },
+        # Request to copy-paste the column with formatting
+        {
+            "copyPaste": {
+                "source": {
+                    "sheetId": sheet.id,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": sheet.col_count,
+                    "startRowIndex": sourceRow - 1,
+                    "endRowIndex": sourceRow
+                },
+                "destination": {
+                    "sheetId": sheet.id,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": sheet.col_count,
+                    "startRowIndex": sourceRow,
+                    "endRowIndex": sourceRow + times - 1
                 },
                 "pasteType": "PASTE_NORMAL"
             }

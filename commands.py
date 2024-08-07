@@ -2,6 +2,8 @@ from typing import List
 
 from sheet import Sheet, Tab
 
+from utils import periodIndex
+
 class Command:
     def __init__(self, args: List[str]):
         self.args = args
@@ -19,6 +21,15 @@ class Command:
                 cmdBump(sheet, self.args[1:])
             case 'set':
                 cmdSet(sheet, self.args[1:])
+            case 'summarize':
+                cmdSummarize(sheet, self.args[1:])
+
+def cmdSummarize(sheet: Sheet, args):
+    assertMinArgs(args, 2)
+    if args[0] not in sheet.summaryTab.vars:
+        print(f'Var {args[0]} does not exist in Summary tab!')
+        return
+    sheet.summaryVars.append((args[0], args[1]))
 
 def cmdSet(sheet: Sheet, args):
     arg = args[0].lower()
@@ -40,8 +51,7 @@ def cmdSpawn(sheet: Sheet, args):
     return
 
 def cmdMap(sheet: Sheet, args):
-    if len(args) < 4:
-        raise('Not enough arguments, we need at least 4.')
+    assertMinArgs(args, 4)
     s = getTab(sheet, args[0])
     t = getTab(sheet, args[2])
     sv = getVar(s, args[1])
@@ -52,14 +62,13 @@ def cmdMap(sheet: Sheet, args):
     for i, cell in enumerate(cells):
         cell.value = f'=\'{s.ref.title}\'!{sources[i].address}'
     t.ref.update_cells(cells, 'USER_ENTERED')
+    print(f'✔ Done.')
     return
 
 def cmdTrend(sheet: Sheet, args):
-    if len(args) < 6:
-        raise('Not enough arguments, we need at least 6.')
+    assertMinArgs(args, 6)
     t = getTab(sheet, args[0])
-    if args[1] not in t.vars:
-        raise(f'Variable "{args[1]} not found!')
+    tv = getVar(t, args[1])
     startP = periodIndex(args[2])
     endP = periodIndex(args[3])
     periods = endP - startP
@@ -68,34 +77,35 @@ def cmdTrend(sheet: Sheet, args):
     method = args[6] if len(args) > 6 else 'linear'
     incAdd: float = (endV - startV) / periods if method == 'linear' else 0
     incMul: float = pow(endV / startV, 1 / periods) if method == 'expo' else 1 
-    cells = t.getPeriodCellsForRow(t.vars[args[1]])
+    cells = t.getPeriodCellsForRow(tv)
     v: float = startV
     for i, cell in enumerate(cells):
         if startP <= i + 1 <= endP:
             cell.value = v
             v = v * incMul + incAdd
     t.ref.update_cells(cells, 'USER_ENTERED')
+    print(f'✔ Done.')
     return
 
 def cmdBump(sheet: Sheet, args):
-    if len(args) < 4:
-        raise('Not enough arguments, we need at least 4.')
+    assertMinArgs(args, 4)
     t = getTab(sheet, args[0])
-    if args[1] not in t.vars:
-        raise(f'Variable "{args[1]} not found!')
+    tv = getVar(t, args[1])
     startP = periodIndex(args[2])
     v = float(args[3])
-    cells = t.getPeriodCellsForRow(t.vars[args[1]])
+    cells = t.getPeriodCellsForRow(tv)
     for i, cell in enumerate(cells):
         if startP <= i + 1:
             cell.value = v
     t.ref.update_cells(cells, 'USER_ENTERED')
+    print(f'✔ Done.')
     return
 
 # Utilities
 
-def periodIndex(s):
-    return int(s[1:])
+def assertMinArgs(args, min):
+    if len(args) < min:
+        raise(f'Not enough arguments, we need at least {min}')
 
 def getTab(sheet, tabName):
     if tabName not in sheet.tabs:
