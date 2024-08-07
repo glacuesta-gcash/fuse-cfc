@@ -43,6 +43,7 @@ class Sheet:
                 self.stepsTab = StepsTab(t)
             elif t.title == '_summary':
                 print('✔ Capturing Summary tab...')
+                # todo: duplicate the summary tab to keep original pristine and to allow scenarios
                 self.summaryTab = Tab(t, self)
                 print(self.summaryTab.vars)
             elif t.title[0] == '_':

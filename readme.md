@@ -2,6 +2,13 @@
 
 This is the Cascading Forecasts (CFC) system.
 
+### Pain Points
+
+- Changing the calculation models required the user to reapply the changes to all calculation tabs, a very laborious and error-prone proposition
+- The whole thing is prone to typo errors when mapping and dragging cell references from assumption tabs to calc tabs, and calc tabs to summary tabs
+- Very easy to forget the overall story when trying to summarize the assumptions and forecast, because overrides and inputs are all over the whole file
+- Running scenarios / alternatives required plenty of manual copy-pasting, reapplication or changing of values scattered all over the spreadsheet
+
 ### Objectives
 
 - Forecasting done procedurally:
@@ -29,7 +36,7 @@ The first row (1) should be blank, except for 1 cell labeled "p" which shall be 
 
 The first column (A) should only contain variable names. A variable name can end with `:x` to indicate a variable that spans multiple rows, where `x` indicates the total number of rows that variable covers.
 
-### Commands
+### Step Reference
 
 #### Set
 `set [setting] [value]`
@@ -71,9 +78,34 @@ Apply a trend (e.g. growth over time) onto a variable in a given tab. The variab
 Maps one variable from one tab (the source) to another variable in another tab (the target). The mapping is done via cell reference, to make it easier for others to trace the logic in the worksheet.
 
 #### Summarize
+
+(to do)
+
 `summarize [var] [method]`
 
 Include a variable in the summary:
 * In the Summary tab, the row with the variable specified (in col A) will be duplicated as needed, in order to populate each row with the mapped values from all dynamic tabs that also contain the variable. (For instance, a row with `gross-rev` will be used as the template for capturing the `gross-rev` variable in all applicable dynamic tabs.)
 * If a row is found with the variable specified, suffixed with a `!` (exclamation point) will be populated with the sum of that variable, for each period. (For instance, a row with `gross-rev!` in col A.) Let's call this the vertical summary. It will always be a sum.
 * Periodic column groups (horizontal summaries) will also be added (e.g. semestral or annual summaries), using `method` (`sum`, `average`, or `last`) to calculate the appropriate time period summary value
+
+#### Group
+
+(to do)
+
+`group [label] [tabs]`
+
+Combine tabs into a group when summarizing. Tabs should be comma-separated. Example:
+
+    group gloan gloan-c-low,gloan-c-med,gloan-c-high
+
+This will cause the three tabs to be listed and subtotaled under the label `gloan` in the Summary tab, where applicable.
+
+#### Scenario
+
+(to do)
+
+`scenario [scenario]`
+
+Causes all the following steps (until another `scenario` step, or the end of all steps) to be considered to be only under this specific scenarios.
+
+If using scenarios, one Summary tab will be generated for each scenario, labeled `-summary-[scenario]`.
