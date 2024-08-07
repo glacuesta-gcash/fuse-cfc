@@ -46,10 +46,10 @@ Copies the tab `[source tab]` to `[new tab]`. The new tab will be given the pref
 
 `build` will also be performed on the spawned tab.
 
-#### Grow
-`grow [tab] [var] [start period] [end period] [start val] [end val] [method]`
+#### Trend
+`trend [tab] [var] [start period] [end period] [start val] [end val] *[method]`
 
-Apply growth onto a variable in a given tab. The variable will be grown from `[start val]` in `[start period]` to `[end val]` in `[end period]`, depending on the `[method]`:
+Apply a trend (e.g. growth over time) onto a variable in a given tab. The variable will be blended from `[start val]` in `[start period]` to `[end val]` in `[end period]`, depending on the `[method]` (defaults to linear if omitted):
 - `linear` - Straight linear growth
 - `expo` - Use a fixed periodic growth rate
 

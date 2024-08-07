@@ -84,15 +84,19 @@ class Tab:
         newTab = self.sheet.registerTab(newSheet)
         newTab.expandPeriods()
     
+    def getPeriodCellsForRow(self, row) -> List[gspread.cell.Cell]:
+        cellList = self.ref.range(row, self.pcol, row, self.pcol + self.sheet.settings['periods'] - 1)
+        return cellList
+    
     def expandPeriods(self):
         if self.pcol is None:
             return
         # duplicate p column as needed
         duplicateColumn(self.sheet.ref, self.ref, self.pcol, self.sheet.settings['periods'])
-        cellList = self.ref.range(1, self.pcol, 1, self.pcol + self.sheet.settings['periods'] - 1)
-        for i, cell in enumerate(cellList):
+        cells = self.getPeriodCellsForRow(1)
+        for i, cell in enumerate(cells):
             cell.value = f'P{i+1}'
-        self.ref.update_cells(cellList)
+        self.ref.update_cells(cells)
 
 class StepsTab:
     def __init__(self, worksheet: gspread.worksheet.Worksheet):
