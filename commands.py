@@ -40,14 +40,24 @@ def cmdSpawn(sheet: Sheet, args):
     return
 
 def cmdMap(sheet: Sheet, args):
+    if len(args) < 4:
+        raise('Not enough arguments, we need at least 4.')
+    s = getTab(sheet, args[0])
+    t = getTab(sheet, args[2])
+    sv = getVar(s, args[1])
+    tv = getVar(t, args[3])
+
+    sources = s.getPeriodCellsForRow(sv)
+    cells = t.getPeriodCellsForRow(tv)
+    for i, cell in enumerate(cells):
+        cell.value = f'=\'{s.ref.title}\'!{sources[i].address}'
+    t.ref.update_cells(cells, 'USER_ENTERED')
     return
 
 def cmdTrend(sheet: Sheet, args):
     if len(args) < 6:
         raise('Not enough arguments, we need at least 6.')
-    if args[0] not in sheet.tabs:
-        raise(f'Tab "{args[0]} not found!')
-    t = sheet.tabs[args[0]]
+    t = getTab(sheet, args[0])
     if args[1] not in t.vars:
         raise(f'Variable "{args[1]} not found!')
     startP = periodIndex(args[2])
@@ -70,9 +80,7 @@ def cmdTrend(sheet: Sheet, args):
 def cmdBump(sheet: Sheet, args):
     if len(args) < 4:
         raise('Not enough arguments, we need at least 4.')
-    if args[0] not in sheet.tabs:
-        raise(f'Tab "{args[0]} not found!')
-    t = sheet.tabs[args[0]]
+    t = getTab(sheet, args[0])
     if args[1] not in t.vars:
         raise(f'Variable "{args[1]} not found!')
     startP = periodIndex(args[2])
@@ -84,5 +92,17 @@ def cmdBump(sheet: Sheet, args):
     t.ref.update_cells(cells, 'USER_ENTERED')
     return
 
+# Utilities
+
 def periodIndex(s):
     return int(s[1:])
+
+def getTab(sheet, tabName):
+    if tabName not in sheet.tabs:
+        raise(f'Tab "{tabName} not found!')
+    return sheet.tabs[tabName]
+
+def getVar(tab: Tab, varName):
+    if varName not in tab.vars:
+        raise(f'Variable "{varName}" not found in tab "{tab.name}!')
+    return tab.vars[varName]

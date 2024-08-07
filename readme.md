@@ -46,6 +46,11 @@ Copies the tab `[source tab]` to `[new tab]`. The new tab will be given the pref
 
 `build` will also be performed on the spawned tab.
 
+#### Bump
+`bump [tab] [var] [start period] [val]`
+
+Sets the value of the variable to val, starting at `[start period]` all the way to the end of the forecast.
+
 #### Trend
 `trend [tab] [var] [start period] [end period] [start val] [end val] *[method]`
 
@@ -55,3 +60,5 @@ Apply a trend (e.g. growth over time) onto a variable in a given tab. The variab
 
 #### Map
 `map [source tab] [source var] [target tab] [target var]`
+
+Maps one variable from one tab (the source) to another variable in another tab (the target). The mapping is done via cell reference, to make it easier for others to trace the logic in the worksheet.
