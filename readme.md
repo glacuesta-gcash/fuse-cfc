@@ -109,3 +109,6 @@ This will cause the three tabs to be listed and subtotaled under the label `gloa
 Causes all the following steps (until another `scenario` step, or the end of all steps) to be considered to be only under this specific scenarios.
 
 If using scenarios, one Summary tab will be generated for each scenario, labeled `-summary-[scenario]`.
+
+---
+2024 G Lacuesta
