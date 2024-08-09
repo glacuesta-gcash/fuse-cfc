@@ -87,6 +87,9 @@ class Sheet:
         # add summary col groups
         pass
 
+    def flush(self):
+        flushRequests(self.ref)
+
 class Tab:
     def __init__(self, worksheet: gspread.worksheet.Worksheet, sheet: Sheet):
         self.ref = worksheet
@@ -126,6 +129,12 @@ class Tab:
         cellList = self.ref.range(row, self.pcol, row, self.pcol + self.sheet.settings['periods'] - 1)
         return cellList
     
+    def updatePeriodCells(self, row, cells: List[gspread.cell.Cell]):
+        startRow = row
+        startCol = self.pcol
+        vals = [[c.value for c in cells]]
+        updateCells(self.ref, startRow, startCol, vals)
+    
     def expandPeriods(self):
         if self.pcol is None:
             return
@@ -134,7 +143,8 @@ class Tab:
         cells = self.getPeriodCellsForRow(1)
         for i, cell in enumerate(cells):
             cell.value = f'P{i+1}'
-        self.ref.update_cells(cells)
+        self.updatePeriodCells(1, cells)
+        #self.ref.update_cells(cells)
 
 class StepsTab:
     def __init__(self, worksheet: gspread.worksheet.Worksheet):
@@ -161,31 +171,38 @@ class StepsTab:
 # raw calls
 # request caching and flushing
 
+def parseCellValue(value):
+    if isinstance(value, str) and value.startswith('='):
+        return {'formulaValue': value}
+    elif isinstance(value, (int, float)):
+        return {'numberValue': value}
+    else:
+        return {'stringValue': value}
+
 def updateCells(sheet: gspread.worksheet.Worksheet, startRow, startCol, vals):
     # vals is rows downward, and then across; each row must be of same length
     rows = []
     for r in vals:
         rows.append({
-            'values': 'x'
+            'values': [
+                { 'userEnteredValue': parseCellValue(x) } for x in r
+            ]
         })
     requests = [
         {
             'updateCells': {
-                'rows': [
-                    {
-                        # RowData - the data to write
-                    }
-                ],
-                'fields': 'str',
+                'rows': rows,
+                'fields': 'userEnteredValue',
                 'start': {
                     # GridCoordinate
-                },
-                'range': {
-                    # GridRange
+                    'sheetId': sheet.id,
+                    'rowIndex': startRow-1,
+                    'columnIndex': startCol-1
                 }
             }
         }
     ]
+    queueRequests(requests)
 
 def duplicateColumn(sheet: gspread.worksheet.Worksheet, sourceCol: int, times: int = 1):
     requests = [
@@ -222,7 +239,6 @@ def duplicateColumn(sheet: gspread.worksheet.Worksheet, sourceCol: int, times: i
             }
         }
     ]
-
     queueRequests(requests)
 
 def duplicateRow(sheet: gspread.worksheet.Worksheet, sourceRow: int, times: int = 1):
@@ -260,7 +276,6 @@ def duplicateRow(sheet: gspread.worksheet.Worksheet, sourceRow: int, times: int 
             }
         }
     ]
-
     queueRequests(requests)
 
 requestQueue: List[any] = []
@@ -273,6 +288,7 @@ def queueRequests(requests):
 def flushRequests(spreadsheet: gspread.spreadsheet.Spreadsheet):
     global requestQueue
 
+    print(f'Executing {len(requestQueue)} command(s)...', end='')
     # Execute the requests
     body = {
         'requests': requestQueue
@@ -280,4 +296,6 @@ def flushRequests(spreadsheet: gspread.spreadsheet.Spreadsheet):
 
     response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet.id, body=body).execute()
 
+    print('done.')
+    
     requestQueue = []

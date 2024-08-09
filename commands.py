@@ -83,7 +83,8 @@ def cmdTrend(sheet: Sheet, args):
         if startP <= i + 1 <= endP:
             cell.value = v
             v = v * incMul + incAdd
-    t.ref.update_cells(cells, 'USER_ENTERED')
+    # t.ref.update_cells(cells, 'USER_ENTERED')
+    t.updatePeriodCells(tv,cells)
     print(f'✔ Done.')
     return
 
