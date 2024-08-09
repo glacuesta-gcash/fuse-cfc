@@ -76,7 +76,7 @@ class Sheet:
             print(sv)
             # add rows
             baseRow = self.summaryTab.vars[sv[0]]
-            duplicateRow(self.ref, self.summaryTab.ref, baseRow, len(cellRefs))
+            duplicateRow(self.summaryTab.ref, baseRow, len(cellRefs))
             # add cell references
             cells = t.ref.range(baseRow, t.pcol, baseRow + len(cellRefs) - 1, t.pcol)
             for i, v in enumerate(cellRefs):
@@ -130,7 +130,7 @@ class Tab:
         if self.pcol is None:
             return
         # duplicate p column as needed
-        duplicateColumn(self.sheet.ref, self.ref, self.pcol, self.sheet.settings['periods'])
+        duplicateColumn(self.ref, self.pcol, self.sheet.settings['periods'])
         cells = self.getPeriodCellsForRow(1)
         for i, cell in enumerate(cells):
             cell.value = f'P{i+1}'
@@ -159,8 +159,35 @@ class StepsTab:
         return args
     
 # raw calls
+# request caching and flushing
 
-def duplicateColumn(spreadsheet: gspread.spreadsheet.Spreadsheet, sheet: gspread.worksheet.Worksheet, sourceCol: int, times: int = 1):
+def updateCells(sheet: gspread.worksheet.Worksheet, startRow, startCol, vals):
+    # vals is rows downward, and then across; each row must be of same length
+    rows = []
+    for r in vals:
+        rows.append({
+            'values': 'x'
+        })
+    requests = [
+        {
+            'updateCells': {
+                'rows': [
+                    {
+                        # RowData - the data to write
+                    }
+                ],
+                'fields': 'str',
+                'start': {
+                    # GridCoordinate
+                },
+                'range': {
+                    # GridRange
+                }
+            }
+        }
+    ]
+
+def duplicateColumn(sheet: gspread.worksheet.Worksheet, sourceCol: int, times: int = 1):
     requests = [
         # Request to insert a new column at index 1 (B)
         {
@@ -196,14 +223,9 @@ def duplicateColumn(spreadsheet: gspread.spreadsheet.Spreadsheet, sheet: gspread
         }
     ]
 
-    # Execute the requests
-    body = {
-        'requests': requests
-    }
+    queueRequests(requests)
 
-    response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet.id, body=body).execute()
-
-def duplicateRow(spreadsheet: gspread.spreadsheet.Spreadsheet, sheet: gspread.worksheet.Worksheet, sourceRow: int, times: int = 1):
+def duplicateRow(sheet: gspread.worksheet.Worksheet, sourceRow: int, times: int = 1):
     requests = [
         # Request to insert a new column at index 1 (B)
         {
@@ -239,9 +261,23 @@ def duplicateRow(spreadsheet: gspread.spreadsheet.Spreadsheet, sheet: gspread.wo
         }
     ]
 
+    queueRequests(requests)
+
+requestQueue: List[any] = []
+def queueRequests(requests):
+    global requestQueue
+
+    requestQueue.append(requests)
+    pass
+
+def flushRequests(spreadsheet: gspread.spreadsheet.Spreadsheet):
+    global requestQueue
+
     # Execute the requests
     body = {
-        'requests': requests
+        'requests': requestQueue
     }
 
     response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet.id, body=body).execute()
+
+    requestQueue = []

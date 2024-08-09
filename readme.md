@@ -53,6 +53,8 @@ Set a configuration setting to a given value. The following are the configurable
 
 Build out an assumption tab. A new tab will be spawned, to keep the original pristine, and the period column will be duplicated to extend its forecast to the appropriate number of periods.
 
+Cached update.
+
 #### Spawn
 `spawn [source tab] [new tab]`
 
@@ -60,10 +62,14 @@ Copies the tab `[source tab]` to `[new tab]`. The new tab will be given the pref
 
 `build` will also be performed on the spawned tab.
 
+Cached update.
+
 #### Bump
 `bump [tab] [var] [start period] [val]`
 
 Sets the value of the variable to val, starting at `[start period]` all the way to the end of the forecast.
+
+Cached update.
 
 #### Trend
 `trend [tab] [var] [start period] [end period] [start val] [end val] *[method]`
@@ -72,10 +78,14 @@ Apply a trend (e.g. growth over time) onto a variable in a given tab. The variab
 - `linear` - Straight linear growth
 - `expo` - Use a fixed periodic growth rate
 
+Cached update.
+
 #### Map
 `map [source tab] [source var] [target tab] [target var]`
 
 Maps one variable from one tab (the source) to another variable in another tab (the target). The mapping is done via cell reference, to make it easier for others to trace the logic in the worksheet.
+
+Cached update.
 
 #### Summarize
 
