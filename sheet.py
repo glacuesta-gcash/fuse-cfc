@@ -141,7 +141,8 @@ class Tab:
         # duplicate_sheet is NOT cached because it immediately may be referenced
         newSheet = self.sheet.ref.duplicate_sheet(self.ref.id,new_sheet_name=f'-{newTitle}',insert_sheet_index=self.sheet.rawTabCount)
         self.sheet.rawTabCount += 1
-        newSheet.update_tab_color('ff0000')
+        # newSheet.update_tab_color('ff0000')
+        updateTabColor(newSheet, { 'red': 1, 'green': 0, 'blue': 0 })
         print(f'✔ Tab "-{newTitle}" created from {self.ref.title}. {timer.check()}')
         newTab = self.sheet.registerTab(newSheet, copyAttributesFrom=self)
         if expandPeriods:
@@ -232,6 +233,21 @@ def deleteTab(sheet: gspread.worksheet.Worksheet):
         {
             'deleteSheet': {
                 'sheetId': sheet.id
+            }
+        }
+    ]
+    queueRequests(requests)
+
+def updateTabColor(sheet: gspread.worksheet.Worksheet, color):
+    requests = [
+        {
+            "updateSheetProperties": {
+                "properties": {
+                    "sheetId": sheet.id,
+                    # "title": title, # In this case, I think that this might not be required to be used.
+                    "tabColor": color
+                },
+                "fields": "tabColor"
             }
         }
     ]
