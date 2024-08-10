@@ -13,4 +13,4 @@ while cmd is not None:
 sheet.summarize()
 sheet.flush()
 
-print(f'\n✔ Done (🕑 {timer.check()})')
+print(f'\n✔ Done {timer.check()}')

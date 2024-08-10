@@ -41,7 +41,7 @@ def cmdSet(sheet: Sheet, args):
 def cmdBuild(sheet: Sheet, args):
     if args[0] not in sheet.tabs:
         raise(f'Tab "{args[0]} not found!')
-    sheet.tabs[args[0]].duplicate(clone=True)
+    sheet.tabs[args[0]].duplicate(clone=True,expandPeriods=True)
     return
 
 def cmdSpawn(sheet: Sheet, args):
