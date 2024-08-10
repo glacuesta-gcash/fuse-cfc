@@ -48,6 +48,12 @@ Set a configuration setting to a given value. The following are the configurable
 - `summary-periods` - The number of periods inside 1 summary column. Defaults to 12 (1 year). The summary will include as many summary periods as can fit inside the total forecast. Using "1" will not have grouped columns.
 - `summary-start` - The starting period (e.g. `p1`, `p6`) for the summary. For instance, starting at `p6` with 12 summary periods will summarize `p6` to `p17` (12 periods) as the first summary column. Use this if, for instance, you are starting the forecast from September but want to summarize full years starting the following January.
 
+For example, if the forecast starts July of Year 0, and you want quarterly summaries, for 2 years starting January of Year 1:
+
+    set     periods             30
+    set     summary-periods     3
+    set     summary-start       6
+
 #### Build
 `build [source tab]`
 
