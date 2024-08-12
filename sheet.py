@@ -57,7 +57,9 @@ class Sheet:
                 # steps, summary, or input
                 ranges_to_read.append(f'\'{sheet.title}\'!A1:1')
                 ranges_to_read.append(f'\'{sheet.title}\'!A1:A')
+        gapi.flush_requests(self.ref)
         
+        # cache tab headers
         raw_tab_vals = gapi.read_ranges(self.ref, ranges_to_read)
         col_headers: Dict[str,List[str]] = {}
         row_headers: Dict[str,List[str]] = {}
@@ -72,7 +74,6 @@ class Sheet:
                 # header row
                 row_headers[tab_name] = raw_tab_vals[key][0] if len(raw_tab_vals[key]) > 0 else []
                 pass
-        gapi.flush_requests(self.ref)
 
         for sheet in all_sheets:
             if sheet.title == '_steps':
@@ -117,59 +118,11 @@ class Sheet:
         self.tabs[sheet.title[1:]] = newTab # do not include prefix
         return newTab
     
-    def summarize(self):
-        print(self.summary_vars)
-        for sv in self.summary_vars:
-            cellRefs: List[str] = []
-            tabNames: List[str] = []
-            for t in self.tabs.values():
-                if t.type == 'dynamic':
-                    if sv[0] in t.vars:
-                        print(f'{t.name} has {sv[0]}')
-                        cellValues = t.get_period_cells_for_row(t.vars[sv[0]])
-                        cellRefs.append(f'=\'{t.ref.title}\'!{cellValues[0].address}')
-                        tabNames.append(t.name)
-
-            # add rows
-            baseRow = self.summary_tab.tab.vars[sv[0]]
-            gapi.duplicate_row(self.summary_tab.ref, baseRow, len(cellRefs))
-            # add cell references
-            cellValues = [[v] for v in cellRefs]
-            tabNameValues = [[v] for v in tabNames]
-            # self.summaryTab.ref.update_cells(cells, 'USER_ENTERED')
-            gapi.update_cells(self.summary_tab.ref, baseRow + 1, self.summary_tab.tab.pcol, cellValues) # skip baseRow as that's the orig
-            gapi.update_cells(self.summary_tab.ref, baseRow + 1, 2, tabNameValues) # skip baseRow as that's the orig
-            # remove original row
-
-        # extend periods
-        self.summary_tab.tab.expand_periods()
-
-        # add summary col groups
-        if self.period_group_count() > 1:
-            gapi.duplicate_column(self.summary_tab.ref, self.summary_tab.tab.gcol, self.period_group_count())
-        group_labels = [[self.period_group_label(n) for n in range(0, self.period_group_count())]]
-        self.update_period_group_values_for_row(1, group_labels)
-
     def flush(self):
         gapi.flush_requests(self.ref)
 
-    def period_group_count(self) -> int:
-        return int((self.settings['periods'] - self.settings['summary-start']) / self.settings['summary-periods'])
-    
-    def period_group_label(self, groupIndex: int) -> int:
-        return f'P{self.period_group_start(groupIndex)}-P{self.period_group_end(groupIndex)}'
-    
-    def period_group_start(self, groupIndex: int) -> int:
-        return self.settings['summary-start'] + self.settings['summary-periods'] * groupIndex
-    def period_group_end(self, groupIndex: int) -> int:
-        return self.period_group_start(groupIndex + 1) - 1
-    
-    def period_group_range_ref_for_row(self, row: int, groupIndex: int) -> str:
-        ref = f'{col_num_to_letter(self.period_group_start(groupIndex))}{row}:{col_num_to_letter(self.period_group_start(groupIndex)-1)}{row}'
-        return ref
-    
-    def update_period_group_values_for_row(self, row: int, vals: List[any]):
-        gapi.update_cells(self.summary_tab.ref, row, self.summary_tab.tab.gcol, vals)
+    def summarize(self):
+        self.summary_tab.summarize()
 
 class Tab:
     def __init__(self, worksheet: gspread.worksheet.Worksheet, sheet: Sheet, copy_attributes_from: 'Tab' = None, cached_row_headers = [], cached_col_headers = []):
@@ -271,7 +224,59 @@ class SummaryTab:
     def __init__(self, tab: Tab):
         self.tab = tab
         self.ref = tab.ref
+        self.sheet = tab.sheet
 
         self.tab.type = 'summary'
         gapi.insert_column(self.ref, 1, 1)
         self.tab.pcol += 1
+
+    def summarize(self):
+        print(self.sheet.summary_vars)
+        for sv in self.sheet.summary_vars:
+            cellRefs: List[str] = []
+            tabNames: List[str] = []
+            for t in self.sheet.tabs.values():
+                if t.type == 'dynamic':
+                    if sv[0] in t.vars:
+                        print(f'{t.name} has {sv[0]}')
+                        cellValues = t.get_period_cells_for_row(t.vars[sv[0]])
+                        cellRefs.append(f'=\'{t.ref.title}\'!{cellValues[0].address}')
+                        tabNames.append(t.name)
+
+            # add rows
+            baseRow = self.tab.vars[sv[0]]
+            gapi.duplicate_row(self.ref, baseRow, len(cellRefs))
+            # add cell references
+            cellValues = [[v] for v in cellRefs]
+            tabNameValues = [[v] for v in tabNames]
+            # self.summaryTab.ref.update_cells(cells, 'USER_ENTERED')
+            gapi.update_cells(self.ref, baseRow + 1, self.tab.pcol, cellValues) # skip baseRow as that's the orig
+            gapi.update_cells(self.ref, baseRow + 1, 2, tabNameValues) # skip baseRow as that's the orig
+            # remove original row
+
+        # extend periods
+        self.tab.expand_periods()
+
+        # add summary col groups
+        if self.period_group_count() > 1:
+            gapi.duplicate_column(self.ref, self.tab.gcol, self.period_group_count())
+        group_labels = [[self.period_group_label(n) for n in range(0, self.period_group_count())]]
+        self.update_period_group_values_for_row(1, group_labels)
+
+    def period_group_count(self) -> int:
+        return int((self.sheet.settings['periods'] - self.sheet.settings['summary-start']) / self.sheet.settings['summary-periods'])
+    
+    def period_group_label(self, groupIndex: int) -> int:
+        return f'P{self.period_group_start(groupIndex)}-P{self.period_group_end(groupIndex)}'
+    
+    def period_group_start(self, groupIndex: int) -> int:
+        return self.sheet.settings['summary-start'] + self.sheet.settings['summary-periods'] * groupIndex
+    def period_group_end(self, groupIndex: int) -> int:
+        return self.period_group_start(groupIndex + 1) - 1
+    
+    def period_group_range_ref_for_row(self, row: int, groupIndex: int) -> str:
+        ref = f'{col_num_to_letter(self.period_group_start(groupIndex))}{row}:{col_num_to_letter(self.period_group_start(groupIndex)-1)}{row}'
+        return ref
+    
+    def update_period_group_values_for_row(self, row: int, vals: List[any]):
+        gapi.update_cells(self.ref, row, self.tab.gcol, vals)
