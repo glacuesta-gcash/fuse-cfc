@@ -5,11 +5,12 @@ from timer import Timer
 timer = Timer()
 sheet = Sheet('1abQSainHd7j44v2Wq8EToCS_5v22rMekwJcUu19mjtE')
 
-cmd = sheet.stepsTab.readNextCommand()
+cmd = sheet.steps_tab.read_next_command()
 while cmd is not None:
     Command(cmd).exec(sheet)
-    cmd = sheet.stepsTab.readNextCommand()
+    cmd = sheet.steps_tab.read_next_command()
 
 sheet.summarize()
+sheet.flush()
 
-print(f'\n✔ Done (🕑 {timer.check()})')
+print(f'\n✔ Done {timer.check()}')
