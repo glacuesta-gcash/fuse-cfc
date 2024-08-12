@@ -26,7 +26,7 @@ class Command:
 
 def cmd_summarize(sheet: Sheet, args):
     assertMinArgs(args, 2)
-    if args[0] not in sheet.summary_tab.vars:
+    if args[0] not in sheet.summary_tab.tab.vars:
         print(f'Var {args[0]} does not exist in Summary tab!')
         return
     sheet.summary_vars.append((args[0], args[1]))

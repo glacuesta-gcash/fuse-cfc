@@ -32,7 +32,7 @@ class Sheet:
         print('✔ Connected.')
         self.tabs: Dict[str, Tab] = {}
         self.steps_tab: StepsTab = None
-        self.summary_tab: Tab = None
+        self.summary_tab: SummaryTab = None
         all_sheets = self.ref.worksheets()
         self.raw_tab_count = len(all_sheets)
 
@@ -46,17 +46,17 @@ class Sheet:
         # sweep first to remove all transient tabs, to avoid triggering duplicate tab error on summary spawn
         # also, pull values from all input and summary tabs
         ranges_to_read: List[str] = []
-        for t in all_sheets:
-            if t.title[0] == '-':
+        for sheet in all_sheets:
+            if sheet.title[0] == '-':
                 # generated tab, for cleanup
-                gapi.delete_tab(t)
+                gapi.delete_tab(sheet)
                 # self.ref.del_worksheet(t)
                 self.raw_tab_count -= 1
-                print(f'→ Tab "{t.title}" removed.')
-            elif t.title[0] == '_':
+                print(f'→ Tab "{sheet.title}" removed.')
+            elif sheet.title[0] == '_':
                 # steps, summary, or input
-                ranges_to_read.append(f'\'{t.title}\'!A1:1')
-                ranges_to_read.append(f'\'{t.title}\'!A1:A')
+                ranges_to_read.append(f'\'{sheet.title}\'!A1:1')
+                ranges_to_read.append(f'\'{sheet.title}\'!A1:A')
         
         raw_tab_vals = gapi.read_ranges(self.ref, ranges_to_read)
         col_headers: Dict[str,List[str]] = {}
@@ -74,30 +74,49 @@ class Sheet:
                 pass
         gapi.flush_requests(self.ref)
 
-        for t in all_sheets:
-            if t.title == '_steps':
+        for sheet in all_sheets:
+            if sheet.title == '_steps':
                 print('✔ Capturing Steps tab...')
-                self.steps_tab = StepsTab(t)
-            elif t.title == '_summary':
+                self.steps_tab = StepsTab(sheet)
+            elif sheet.title == '_summary':
                 print('✔ Capturing Summary tab...')
-                # todo: duplicate the summary tab to keep original pristine and to allow scenarios
-                self.summary_tab = self.register_tab(t).duplicate('summary', clone=True, expand_periods=False)
-                self.summary_tab.type = 'summary'
-                gapi.insert_column(self.summary_tab.ref, 1, 1)
-                self.summary_tab.pcol += 1
-            elif t.title[0] == '_':
-                self.register_tab(t, cached_row_headers=row_headers, cached_col_headers=col_headers)
+                self.summary_tab = self.register_summary_tab(
+                    sheet, 
+                    cached_row_headers=row_headers, 
+                    cached_col_headers=col_headers
+                    )
+            elif sheet.title[0] == '_':
+                self.register_tab(sheet, 
+                                  cached_row_headers=row_headers, 
+                                  cached_col_headers=col_headers
+                                  )
 
         if self.steps_tab == None:
             raise('No Steps tab found!')
         if self.summary_tab == None:
             raise('No Summary tab found!')
-
-    def register_tab(self, sheet: gspread.worksheet.Worksheet, copyAttributesFrom: 'Tab' = None, cached_row_headers = [], cached_col_headers = []) -> 'Tab':
-        newTab = Tab(sheet, self, copyAttributesFrom, cached_row_headers, cached_col_headers)
-        self.tabs[sheet.title[1:]] = newTab # do not include prefix
+        
+    def register_summary_tab(self, sheet: gspread.worksheet.Worksheet, copyAttributesFrom: 'Tab' = None, cached_row_headers = [], cached_col_headers = []) -> 'SummaryTab':
+        newTab = SummaryTab(
+            self.register_tab(
+                sheet, 
+                cached_row_headers=cached_row_headers, 
+                cached_col_headers=cached_col_headers
+                ).duplicate('summary', clone=True, expand_periods=False)
+            )
         return newTab
 
+    def register_tab(self, sheet: gspread.worksheet.Worksheet, copyAttributesFrom: 'Tab' = None, cached_row_headers = [], cached_col_headers = []) -> 'Tab':
+        newTab = Tab(
+            sheet, 
+            self, 
+            copyAttributesFrom, 
+            cached_row_headers, 
+            cached_col_headers
+            )
+        self.tabs[sheet.title[1:]] = newTab # do not include prefix
+        return newTab
+    
     def summarize(self):
         print(self.summary_vars)
         for sv in self.summary_vars:
@@ -112,22 +131,22 @@ class Sheet:
                         tabNames.append(t.name)
 
             # add rows
-            baseRow = self.summary_tab.vars[sv[0]]
+            baseRow = self.summary_tab.tab.vars[sv[0]]
             gapi.duplicate_row(self.summary_tab.ref, baseRow, len(cellRefs))
             # add cell references
             cellValues = [[v] for v in cellRefs]
             tabNameValues = [[v] for v in tabNames]
             # self.summaryTab.ref.update_cells(cells, 'USER_ENTERED')
-            gapi.update_cells(self.summary_tab.ref, baseRow + 1, self.summary_tab.pcol, cellValues) # skip baseRow as that's the orig
+            gapi.update_cells(self.summary_tab.ref, baseRow + 1, self.summary_tab.tab.pcol, cellValues) # skip baseRow as that's the orig
             gapi.update_cells(self.summary_tab.ref, baseRow + 1, 2, tabNameValues) # skip baseRow as that's the orig
             # remove original row
 
         # extend periods
-        self.summary_tab.expand_periods()
+        self.summary_tab.tab.expand_periods()
 
         # add summary col groups
         if self.period_group_count() > 1:
-            gapi.duplicate_column(self.summary_tab.ref, self.summary_tab.gcol, self.period_group_count())
+            gapi.duplicate_column(self.summary_tab.ref, self.summary_tab.tab.gcol, self.period_group_count())
         group_labels = [[self.period_group_label(n) for n in range(0, self.period_group_count())]]
         self.update_period_group_values_for_row(1, group_labels)
 
@@ -150,7 +169,7 @@ class Sheet:
         return ref
     
     def update_period_group_values_for_row(self, row: int, vals: List[any]):
-        gapi.update_cells(self.summary_tab.ref, row, self.summary_tab.gcol, vals)
+        gapi.update_cells(self.summary_tab.ref, row, self.summary_tab.tab.gcol, vals)
 
 class Tab:
     def __init__(self, worksheet: gspread.worksheet.Worksheet, sheet: Sheet, copy_attributes_from: 'Tab' = None, cached_row_headers = [], cached_col_headers = []):
@@ -248,3 +267,11 @@ class StepsTab:
 
         return args
 
+class SummaryTab:
+    def __init__(self, tab: Tab):
+        self.tab = tab
+        self.ref = tab.ref
+
+        self.tab.type = 'summary'
+        gapi.insert_column(self.ref, 1, 1)
+        self.tab.pcol += 1
