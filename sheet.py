@@ -1,5 +1,7 @@
 from typing import List, Dict, Tuple
 
+import re
+
 import gspread
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
@@ -43,7 +45,7 @@ class Sheet:
 
         # sweep first to remove all transient tabs, to avoid triggering duplicate tab error on summary spawn
         # also, pull values from all input and summary tabs
-        sheets_to_read: List[str] = []
+        ranges_to_read: List[str] = []
         for t in all_sheets:
             if t.title[0] == '-':
                 # generated tab, for cleanup
@@ -51,10 +53,25 @@ class Sheet:
                 # self.ref.del_worksheet(t)
                 self.raw_tab_count -= 1
                 print(f'→ Tab "{t.title}" removed.')
-            else:
+            elif t.title[0] == '_':
                 # steps, summary, or input
-                sheets_to_read.append(t)
-        gapi.read_sheets(self.ref, sheets_to_read)
+                ranges_to_read.append(f'\'{t.title}\'!A1:1')
+                ranges_to_read.append(f'\'{t.title}\'!A1:A')
+        
+        raw_tab_vals = gapi.read_ranges(self.ref, ranges_to_read)
+        col_headers: Dict[str,List[str]] = {}
+        row_headers: Dict[str,List[str]] = {}
+        for key in raw_tab_vals:
+            re_match = re.search(r'\'_(.*)\'\!', key)
+            tab_name = re_match.group(1)
+            if 'A1:A' in key:
+                # header column
+                col_headers[tab_name] = [el[0] if el != [] else '' for el in raw_tab_vals[key]]
+                pass
+            else:
+                # header row
+                row_headers[tab_name] = raw_tab_vals[key][0] if len(raw_tab_vals[key]) > 0 else []
+                pass
         gapi.flush_requests(self.ref)
 
         for t in all_sheets:
@@ -68,17 +85,16 @@ class Sheet:
                 self.summary_tab.type = 'summary'
                 gapi.insert_column(self.summary_tab.ref, 1, 1)
                 self.summary_tab.pcol += 1
-                print(self.summary_tab.vars)
             elif t.title[0] == '_':
-                self.register_tab(t)
+                self.register_tab(t, cached_row_headers=row_headers, cached_col_headers=col_headers)
 
         if self.steps_tab == None:
             raise('No Steps tab found!')
         if self.summary_tab == None:
             raise('No Summary tab found!')
 
-    def register_tab(self, sheet: gspread.worksheet.Worksheet, copyAttributesFrom: 'Tab' = None) -> 'Tab':
-        newTab = Tab(sheet, self, copy_attributes_from=copyAttributesFrom)
+    def register_tab(self, sheet: gspread.worksheet.Worksheet, copyAttributesFrom: 'Tab' = None, cached_row_headers = [], cached_col_headers = []) -> 'Tab':
+        newTab = Tab(sheet, self, copyAttributesFrom, cached_row_headers, cached_col_headers)
         self.tabs[sheet.title[1:]] = newTab # do not include prefix
         return newTab
 
@@ -137,7 +153,7 @@ class Sheet:
         gapi.update_cells(self.summary_tab.ref, row, self.summary_tab.gcol, vals)
 
 class Tab:
-    def __init__(self, worksheet: gspread.worksheet.Worksheet, sheet: Sheet, copy_attributes_from: 'Tab' = None):
+    def __init__(self, worksheet: gspread.worksheet.Worksheet, sheet: Sheet, copy_attributes_from: 'Tab' = None, cached_row_headers = [], cached_col_headers = []):
         timer = Timer()
         self.ref = worksheet
         self.sheet = sheet
@@ -146,10 +162,10 @@ class Tab:
         self.type = 'input' if worksheet.title[0] == '_' else 'dynamic'
         if copy_attributes_from == None:
             # cache var references
-            colVars = self.ref.col_values(1)
+            colVars = cached_col_headers[self.name] if self.name in cached_col_headers else self.ref.col_values(1)
             self.vars = {str(value): row + 1 for row, value in enumerate(colVars) if value}
             # find p column
-            row_vals = self.ref.row_values(1)
+            row_vals = cached_row_headers[self.name] if self.name in cached_row_headers else self.ref.row_values(1)
             self.pcol = self.find_index_with_value(row_vals, 'p')
             self.gcol = self.find_index_with_value(row_vals, 'g')
         else:
@@ -219,7 +235,7 @@ class StepsTab:
             while step[-1] == "":
                 step.pop()
         self.cursor = 0
-        print(f'{len(self.steps)} steps found.')
+        print(f'  {len(self.steps)} steps found.')
 
     def read_next_command(self) -> List[str]:
         if self.cursor >= len(self.steps):

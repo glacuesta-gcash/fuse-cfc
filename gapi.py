@@ -23,17 +23,15 @@ def parse_cell_value(value):
     else:
         return {'stringValue': value}
 
-def read_sheets(spreadsheet: gspread.spreadsheet.Spreadsheet, sheets: List[gspread.worksheet.Worksheet]):
-    pprint(sheets)
+def read_ranges(spreadsheet: gspread.spreadsheet.Spreadsheet, ranges: List[str]):
+    timer = Timer()
     result = service.spreadsheets().values().batchGet(
         spreadsheetId=spreadsheet.id,
-        ranges=[sheet.title for sheet in sheets]
+        ranges=ranges
     ).execute()
-    pprint(result)
     response = {}
     for value_range in result['valueRanges']:
         # this assumes first row and first col are non-blank, otherwise it will lead to parsing issues downstream
-        pprint(value_range)
         if 'values' in value_range:
             values = value_range['values']
             if value_range['majorDimension'] == 'COLUMNS':
@@ -42,7 +40,7 @@ def read_sheets(spreadsheet: gspread.spreadsheet.Spreadsheet, sheets: List[gspre
         else:
             values = []
         response[value_range['range']] = values
-    pprint(response)
+    print(f'✔ {len(ranges)} range(s) read. {timer.check()}')
     return response
 
 def update_cells(sheet: gspread.worksheet.Worksheet, startRow, startCol, vals):
@@ -190,9 +188,10 @@ def flush_requests(spreadsheet: gspread.spreadsheet.Spreadsheet):
         print('No commands queued to flush.')
         return
     
-    pprint(request_queue)
+    # pprint(request_queue)
+    print(f'  [{str.join(', ', [list(req.keys())[0] for req in request_queue])}]')
 
-    print(f'Executing {len(request_queue)} queued command(s)...', end='')
+    print(f'  Executing {len(request_queue)} queued command(s)...', end='')
     # Execute the requests
     body = {
         'requests': request_queue
