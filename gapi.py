@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple, Callable
 
 import gspread
 from google.oauth2.service_account import Credentials
@@ -22,6 +22,28 @@ def parse_cell_value(value):
         return {'numberValue': value}
     else:
         return {'stringValue': value}
+
+def read_sheets(spreadsheet: gspread.spreadsheet.Spreadsheet, sheets: List[gspread.worksheet.Worksheet]):
+    pprint(sheets)
+    result = service.spreadsheets().values().batchGet(
+        spreadsheetId=spreadsheet.id,
+        ranges=[sheet.title for sheet in sheets]
+    ).execute()
+    pprint(result)
+    response = {}
+    for value_range in result['valueRanges']:
+        # this assumes first row and first col are non-blank, otherwise it will lead to parsing issues downstream
+        pprint(value_range)
+        if 'values' in value_range:
+            values = value_range['values']
+            if value_range['majorDimension'] == 'COLUMNS':
+                values = list(zip(*values))
+                values = [list(row) for row in values]
+        else:
+            values = []
+        response[value_range['range']] = values
+    pprint(response)
+    return response
 
 def update_cells(sheet: gspread.worksheet.Worksheet, startRow, startCol, vals):
     # vals is rows downward, and then across; each row must be of same length

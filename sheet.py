@@ -42,6 +42,8 @@ class Sheet:
         self.summary_vars: List[Tuple[str, str]] = []
 
         # sweep first to remove all transient tabs, to avoid triggering duplicate tab error on summary spawn
+        # also, pull values from all input and summary tabs
+        sheets_to_read: List[str] = []
         for t in all_sheets:
             if t.title[0] == '-':
                 # generated tab, for cleanup
@@ -49,6 +51,10 @@ class Sheet:
                 # self.ref.del_worksheet(t)
                 self.raw_tab_count -= 1
                 print(f'→ Tab "{t.title}" removed.')
+            else:
+                # steps, summary, or input
+                sheets_to_read.append(t)
+        gapi.read_sheets(self.ref, sheets_to_read)
         gapi.flush_requests(self.ref)
 
         for t in all_sheets:
