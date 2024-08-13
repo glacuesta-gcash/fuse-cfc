@@ -1,6 +1,9 @@
 from sheet import Sheet
 from commands import Command
 from timer import Timer
+import os
+
+os.system('cls' if os.name == 'nt' else 'clear')
 
 timer = Timer()
 sheet = Sheet('1abQSainHd7j44v2Wq8EToCS_5v22rMekwJcUu19mjtE')

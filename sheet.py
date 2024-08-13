@@ -37,15 +37,6 @@ class Sheet:
         ]
         tasks = await asyncio.gather(*coroutines)
         return tasks
-    async def async_flush_and_read(self, ranges_to_read: List[str]):
-        results = await asyncio.gather(
-            asyncio.create_task(
-                asyncio.to_thread(partial(gapi.flush_requests, self.ref))
-            ),
-            asyncio.create_task(
-                asyncio.to_thread(partial(gapi.read_ranges, self.ref, ranges_to_read))
-            ))
-        return results
     
     def __init__(self, sheetKey: str):
         print('⇨ Connecting to Sheet...')
@@ -87,7 +78,6 @@ class Sheet:
             partial(gapi.flush_requests, self.ref), 
             partial(gapi.read_ranges, self.ref, ranges_to_read)
         ))
-        # results = asyncio.run(self.async_flush_and_read(ranges_to_read))
         print(f'✔ Done with parallel calls {timer.check()}')
         
         # cache tab headers
@@ -290,7 +280,7 @@ class SummaryTab:
                 if t.type == 'dynamic':
                     row = 0
                     if sv[0] in t.vars:
-                        print(f'{t.name} has {sv[0]}')
+                        # print(f'{t.name} has {sv[0]}')
                         row += 1
                         cellValues = t.get_period_cells_for_row(t.vars[sv[0]])
                         cellRefs.append(f'=\'{t.ref.title}\'!{cellValues[0].address}')
@@ -326,8 +316,6 @@ class SummaryTab:
         group_labels = [[self.period_group_label(n) for n in range(0, groups)]]
         self.update_period_group_values_for_row(1, group_labels)
 
-        print(groupRows)
-        print(groupVals)
         # add group summaries
         for i in range(0,len(groupRows)):
             gapi.update_cells(self.ref, groupRows[i], self.tab.gcol, [groupVals[i]]) # put in [] to make it one row

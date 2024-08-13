@@ -200,7 +200,7 @@ def flush_requests(spreadsheet: gspread.spreadsheet.Spreadsheet):
     timer = Timer()
     response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet.id, body=body).execute()
 
-    print(f'  ✔ done {timer.check()}.')
+    print(f'  ✔ ...done executing. {timer.check()}')
     
     request_queue = []
     
