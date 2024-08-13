@@ -179,5 +179,14 @@ Causes all the following steps (until another `scenario` step, or the end of all
 
 If using scenarios, one Summary tab will be generated for each scenario, labeled `-summary-[scenario]`.
 
+### To-do
+
+X Group periods, including last, sum, average
+- Multirow vars
+- :col specification in commands
+- Asynchronous threads for combining read and write ops
+- Include tab duplication in batch update calls; reserve coloring the tabs to the end
+- Automatic determination of when to flush (when switching between read and write ops)
+
 ---
 2024 G Lacuesta

@@ -69,7 +69,6 @@ class Sheet:
         for key in raw_tab_vals:
             re_match = re.search(r'\'_(.*)\'\!', key)
             tab_name = re_match.group(1)
-            print(key)
             if '_steps' in key:
                 full_cache[tab_name] = raw_tab_vals[key]
             elif 'A1:A' in key:
@@ -203,7 +202,7 @@ class Tab:
         for i, cell in enumerate(cells):
             cell.value = f'P{i+1}'
         self.update_period_cells(1, cells)
-        if self.gcol is not None:
+        if self.gcol is not None and self.gcol > self.pcol:
             self.gcol += self.sheet.settings['periods']
         #self.ref.update_cells(cells)
 
@@ -243,20 +242,43 @@ class SummaryTab:
         self.tab.pcol += 1
 
     def summarize(self):
+        groups = self.period_group_count()
+
         print(self.sheet.summary_vars)
+
+        groupRows: List[int] = []
+        groupVals: List[List[str]] = []
+
         for sv in self.sheet.summary_vars:
             cellRefs: List[str] = []
             tabNames: List[str] = []
-            for t in self.sheet.tabs.values():
-                if t.type == 'dynamic':
-                    if sv[0] in t.vars:
-                        print(f'{t.name} has {sv[0]}')
-                        cellValues = t.get_period_cells_for_row(t.vars[sv[0]])
-                        cellRefs.append(f'=\'{t.ref.title}\'!{cellValues[0].address}')
-                        tabNames.append(t.name)
 
             # add rows
             baseRow = self.tab.vars[sv[0]]
+
+            # map
+            for t in self.sheet.tabs.values():
+                if t.type == 'dynamic':
+                    row = 0
+                    if sv[0] in t.vars:
+                        print(f'{t.name} has {sv[0]}')
+                        row += 1
+                        cellValues = t.get_period_cells_for_row(t.vars[sv[0]])
+                        cellRefs.append(f'=\'{t.ref.title}\'!{cellValues[0].address}')
+                        tabNames.append(t.name)
+                        # calculate and store group summaries
+                        vs: List[str] = []
+                        for n in range(0, groups):
+                            if sv[1] == 'last':
+                                v = f'={self.period_group_ref_for_last(baseRow + row, n)}'
+                                pass
+                            elif sv[1] in ['sum','average']:
+                                # sum, average, or other worksheet function
+                                v = f'={sv[1]}({self.period_group_range_ref_for_row(baseRow + row, n)})'
+                            vs.append(v)
+                        groupVals.append(vs)
+                        groupRows.append(baseRow + row)
+
             gapi.duplicate_row(self.ref, baseRow, len(cellRefs))
             # add cell references
             cellValues = [[v] for v in cellRefs]
@@ -270,10 +292,16 @@ class SummaryTab:
         self.tab.expand_periods()
 
         # add summary col groups
-        if self.period_group_count() > 1:
-            gapi.duplicate_column(self.ref, self.tab.gcol, self.period_group_count())
-        group_labels = [[self.period_group_label(n) for n in range(0, self.period_group_count())]]
+        if groups > 1:
+            gapi.duplicate_column(self.ref, self.tab.gcol, groups - 1)
+        group_labels = [[self.period_group_label(n) for n in range(0, groups)]]
         self.update_period_group_values_for_row(1, group_labels)
+
+        print(groupRows)
+        print(groupVals)
+        # add group summaries
+        for i in range(0,len(groupRows)):
+            gapi.update_cells(self.ref, groupRows[i], self.tab.gcol, [groupVals[i]]) # put in [] to make it one row
 
     def period_group_count(self) -> int:
         return int((self.sheet.settings['periods'] - self.sheet.settings['summary-start'] + 1) / self.sheet.settings['summary-periods'])
@@ -287,7 +315,10 @@ class SummaryTab:
         return self.period_group_start(groupIndex + 1) - 1
     
     def period_group_range_ref_for_row(self, row: int, groupIndex: int) -> str:
-        ref = f'{col_num_to_letter(self.period_group_start(groupIndex))}{row}:{col_num_to_letter(self.period_group_start(groupIndex)-1)}{row}'
+        ref = f'{col_num_to_letter(self.tab.pcol + self.period_group_start(groupIndex)-1)}{row}:{col_num_to_letter(self.tab.pcol + self.period_group_end(groupIndex)-1)}{row}'
+        return ref
+    def period_group_ref_for_last(self, row: int, groupIndex: int) -> str:
+        ref = f'{col_num_to_letter(self.tab.pcol + self.period_group_end(groupIndex)-1)}{row}'
         return ref
     
     def update_period_group_values_for_row(self, row: int, vals: List[any]):
