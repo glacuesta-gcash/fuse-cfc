@@ -53,6 +53,8 @@ class Sheet:
                 # self.ref.del_worksheet(t)
                 self.raw_tab_count -= 1
                 print(f'→ Tab "{sheet.title}" removed.')
+            elif sheet.title == '_steps':
+                ranges_to_read.append(sheet.title)
             elif sheet.title[0] == '_':
                 # steps, summary, or input
                 ranges_to_read.append(f'\'{sheet.title}\'!A1:1')
@@ -61,37 +63,39 @@ class Sheet:
         
         # cache tab headers
         raw_tab_vals = gapi.read_ranges(self.ref, ranges_to_read)
-        col_headers: Dict[str,List[str]] = {}
-        row_headers: Dict[str,List[str]] = {}
+        col_headers_cache: Dict[str,List[str]] = {}
+        row_headers_cache: Dict[str,List[str]] = {}
+        full_cache: Dict[str,List[List[str]]] = {}
         for key in raw_tab_vals:
             re_match = re.search(r'\'_(.*)\'\!', key)
             tab_name = re_match.group(1)
-            if 'A1:A' in key:
+            print(key)
+            if '_steps' in key:
+                full_cache[tab_name] = raw_tab_vals[key]
+            elif 'A1:A' in key:
                 # header column
-                col_headers[tab_name] = [el[0] if el != [] else '' for el in raw_tab_vals[key]]
-                pass
-            else:
+                col_headers_cache[tab_name] = [el[0] if el != [] else '' for el in raw_tab_vals[key]]
+            elif 'A1:' in key:
                 # header row
-                row_headers[tab_name] = raw_tab_vals[key][0] if len(raw_tab_vals[key]) > 0 else []
-                pass
+                row_headers_cache[tab_name] = raw_tab_vals[key][0] if len(raw_tab_vals[key]) > 0 else []
 
         for sheet in all_sheets:
             if sheet.title == '_steps':
                 timer = Timer()
                 print('✔ Capturing Steps tab...')
-                self.steps_tab = StepsTab(sheet)
+                self.steps_tab = StepsTab(sheet, full_cache)
                 print(f'Done {timer.check()}')
             elif sheet.title == '_summary':
                 print('✔ Capturing Summary tab...')
                 self.summary_tab = self.register_summary_tab(
                     sheet, 
-                    cached_row_headers=row_headers, 
-                    cached_col_headers=col_headers
+                    cached_row_headers=row_headers_cache, 
+                    cached_col_headers=col_headers_cache
                     )
             elif sheet.title[0] == '_':
                 self.register_tab(sheet, 
-                                  cached_row_headers=row_headers, 
-                                  cached_col_headers=col_headers
+                                  cached_row_headers=row_headers_cache, 
+                                  cached_col_headers=col_headers_cache
                                   )
 
         if self.steps_tab == None:
@@ -204,9 +208,12 @@ class Tab:
         #self.ref.update_cells(cells)
 
 class StepsTab:
-    def __init__(self, worksheet: gspread.worksheet.Worksheet):
+    def __init__(self, worksheet: gspread.worksheet.Worksheet, cached_cells = None):
         self.ref = worksheet
-        self.steps = self.ref.get_all_values()
+        if cached_cells is not None and 'steps' in cached_cells:
+            self.steps = cached_cells['steps']
+        else:
+            self.steps = self.ref.get_all_values()
         self.steps = [step for step in self.steps if any(token != "" for token in step)]
         for step in self.steps:
             while step[-1] == "":
@@ -269,7 +276,7 @@ class SummaryTab:
         self.update_period_group_values_for_row(1, group_labels)
 
     def period_group_count(self) -> int:
-        return int((self.sheet.settings['periods'] - self.sheet.settings['summary-start']) / self.sheet.settings['summary-periods'])
+        return int((self.sheet.settings['periods'] - self.sheet.settings['summary-start'] + 1) / self.sheet.settings['summary-periods'])
     
     def period_group_label(self, groupIndex: int) -> int:
         return f'P{self.period_group_start(groupIndex)}-P{self.period_group_end(groupIndex)}'
