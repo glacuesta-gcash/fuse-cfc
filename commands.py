@@ -29,7 +29,7 @@ def cmd_summarize(sheet: Sheet, args):
     if args[0] not in sheet.summary_tab.tab.vars:
         print(f'Var {args[0]} does not exist in Summary tab!')
         return
-    sheet.summary_vars.append((args[0], args[1]))
+    sheet.add_summary_var(args[0], args[1])
 
 def cmd_set(sheet: Sheet, args):
     arg = args[0].lower()
@@ -105,15 +105,12 @@ def cmd_bump(sheet: Sheet, args):
 # Utilities
 
 def assertMinArgs(args, min):
-    if len(args) < min:
-        raise(f'Not enough arguments, we need at least {min}')
+    assert len(args) >= min, f'Not enough arguments, we need at least {min}.'
 
 def getTab(sheet, tabName):
-    if tabName not in sheet.tabs:
-        raise(f'Tab "{tabName} not found!')
+    assert tabName in sheet.tabs, f'Tab "{tabName}" not found!'
     return sheet.tabs[tabName]
 
 def getVar(tab: Tab, varName):
-    if varName not in tab.vars:
-        raise(f'Variable "{varName}" not found in tab "{tab.name}!')
+    assert varName in tab.vars, f'Variable "{varName}" not found in tab "{tab.name}"!'
     return tab.vars[varName]

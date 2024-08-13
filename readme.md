@@ -150,8 +150,6 @@ Similar to the above pattern, although here, source and target columns are speci
 
 #### Summarize
 
-(to do)
-
 `summarize [var] [method]`
 
 Include a variable in the summary:

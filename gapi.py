@@ -189,7 +189,7 @@ def flush_requests(spreadsheet: gspread.spreadsheet.Spreadsheet):
         return
     
     # pprint(request_queue)
-    print(f'  [{str.join(', ', [list(req.keys())[0] for req in request_queue])}]')
+    print(f'  {[list(req.keys())[0] for req in request_queue]}')
 
     print(f'  Executing {len(request_queue)} queued command(s)...', end='')
     # Execute the requests

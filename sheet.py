@@ -77,8 +77,10 @@ class Sheet:
 
         for sheet in all_sheets:
             if sheet.title == '_steps':
+                timer = Timer()
                 print('✔ Capturing Steps tab...')
                 self.steps_tab = StepsTab(sheet)
+                print(f'Done {timer.check()}')
             elif sheet.title == '_summary':
                 print('✔ Capturing Summary tab...')
                 self.summary_tab = self.register_summary_tab(
@@ -120,6 +122,9 @@ class Sheet:
     
     def flush(self):
         gapi.flush_requests(self.ref)
+
+    def add_summary_var(self, var, method):
+        self.summary_vars.append((var, method))
 
     def summarize(self):
         self.summary_tab.summarize()
