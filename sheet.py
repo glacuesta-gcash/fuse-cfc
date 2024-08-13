@@ -1,6 +1,8 @@
 from typing import List, Dict, Tuple
 
 import re
+import asyncio
+from functools import partial
 
 import gspread
 from google.oauth2.service_account import Credentials
@@ -26,6 +28,25 @@ client = gspread.authorize(creds)
 gapi.set_service(build('sheets', 'v4', credentials=creds))
 
 class Sheet:
+    async def parallel_calls(self, *partials):
+        coroutines = [
+            asyncio.create_task(
+                asyncio.to_thread(partial)
+            )
+            for partial in partials
+        ]
+        tasks = await asyncio.gather(*coroutines)
+        return tasks
+    async def async_flush_and_read(self, ranges_to_read: List[str]):
+        results = await asyncio.gather(
+            asyncio.create_task(
+                asyncio.to_thread(partial(gapi.flush_requests, self.ref))
+            ),
+            asyncio.create_task(
+                asyncio.to_thread(partial(gapi.read_ranges, self.ref, ranges_to_read))
+            ))
+        return results
+    
     def __init__(self, sheetKey: str):
         print('⇨ Connecting to Sheet...')
         self.ref = client.open_by_key(sheetKey)
@@ -59,10 +80,18 @@ class Sheet:
                 # steps, summary, or input
                 ranges_to_read.append(f'\'{sheet.title}\'!A1:1')
                 ranges_to_read.append(f'\'{sheet.title}\'!A1:A')
-        gapi.flush_requests(self.ref)
+
+        timer = Timer()
+        print('→ Performing a parallel flush and read...')
+        results = asyncio.run(self.parallel_calls(
+            partial(gapi.flush_requests, self.ref), 
+            partial(gapi.read_ranges, self.ref, ranges_to_read)
+        ))
+        # results = asyncio.run(self.async_flush_and_read(ranges_to_read))
+        print(f'✔ Done with parallel calls {timer.check()}')
         
         # cache tab headers
-        raw_tab_vals = gapi.read_ranges(self.ref, ranges_to_read)
+        raw_tab_vals = results[1]
         col_headers_cache: Dict[str,List[str]] = {}
         row_headers_cache: Dict[str,List[str]] = {}
         full_cache: Dict[str,List[List[str]]] = {}

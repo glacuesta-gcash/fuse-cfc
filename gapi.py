@@ -40,7 +40,7 @@ def read_ranges(spreadsheet: gspread.spreadsheet.Spreadsheet, ranges: List[str])
         else:
             values = []
         response[value_range['range']] = values
-    print(f'✔ {len(ranges)} range(s) read. {timer.check()}')
+    print(f'  ✔ {len(ranges)} range(s) read. {timer.check()}')
     return response
 
 def update_cells(sheet: gspread.worksheet.Worksheet, startRow, startCol, vals):
@@ -191,7 +191,7 @@ def flush_requests(spreadsheet: gspread.spreadsheet.Spreadsheet):
     # pprint(request_queue)
     print(f'  {[list(req.keys())[0] for req in request_queue]}')
 
-    print(f'  Executing {len(request_queue)} queued command(s)...', end='')
+    print(f'  → Executing {len(request_queue)} queued command(s)...')
     # Execute the requests
     body = {
         'requests': request_queue
@@ -200,7 +200,7 @@ def flush_requests(spreadsheet: gspread.spreadsheet.Spreadsheet):
     timer = Timer()
     response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet.id, body=body).execute()
 
-    print(f'done {timer.check()}.')
+    print(f'  ✔ done {timer.check()}.')
     
     request_queue = []
     
