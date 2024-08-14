@@ -187,10 +187,10 @@ If using scenarios, one Summary tab will be generated for each scenario, labeled
 
 - ✔ Group periods, including last, sum, average
 - Multirow vars
-- :col specification in commands
+- ✔ :col specification in commands (map)
 - ✔ Asynchronous threads for combining read and write ops
-- Automatic determination of when to flush (when switching between read and write ops)
-- Group raw period columns in summary
+- Batch update for spawn and build
+- ✔ Group raw period columns in summary
 
 ---
 2024 G Lacuesta

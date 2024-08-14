@@ -110,6 +110,36 @@ def insert_column(sheet: gspread.worksheet.Worksheet, sourceCol: int, times: int
     ]
     queue_requests(requests)
 
+def group_columns(sheet: gspread.worksheet.Worksheet, startCol: int, endCol: int):
+    requests = [
+        {
+            "addDimensionGroup": {
+                "range": {
+                    "dimension": "COLUMNS",
+                    "sheetId": sheet.id,
+                    "startIndex": startCol,
+                    "endIndex": endCol
+                }
+            }
+        },
+        {
+            "updateDimensionGroup": {
+                "dimensionGroup": {
+                    "range": {
+                        "dimension": "COLUMNS",
+                        "sheetId": sheet.id,
+                        "startIndex": startCol,
+                        "endIndex": endCol
+                    },
+                    "depth": 1,
+                    "collapsed": True
+                },
+                "fields": "*"
+            }
+        }
+    ]
+    queue_requests(requests)
+
 def duplicate_column(sheet: gspread.worksheet.Worksheet, sourceCol: int, times: int = 1):
     insert_column(sheet, sourceCol, times)
     requests = [

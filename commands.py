@@ -48,7 +48,7 @@ def cmd_build(sheet: Sheet, args):
 def cmd_spawn(sheet: Sheet, args):
     if args[0] not in sheet.tabs:
         raise(f'Tab "{args[0]} not found!')
-    sheet.tabs[args[0]].duplicate(newTitle=args[1])
+    sheet.tabs[args[0]].duplicate(newTitle=args[1], expand_periods=True)
     return
 
 def parse_var(tab: Tab, arg: str) -> Tuple[int, str]:
@@ -66,34 +66,35 @@ def cmd_map(sheet: Sheet, args):
     assertMinArgs(args, 4)
     s = sheet.get_tab(args[0])
     t = sheet.get_tab(args[2])
-    sv, scol = parse_var(s, args[1])
-    tv, tcol = parse_var(t, args[3])
+    sv_row, scol = parse_var(s, args[1])
+    tv_row, tcol = parse_var(t, args[3])
 
     # var may be multi-row
 
     # cases:
     # source is col, target is col
-    # TO-DO
+    if scol != 'p' and tcol != 'p':
+        source = s.get_row_col_ref(sv_row, s.get_col(scol))
+        t.update_cell(tv_row, t.get_col(tcol), f'={source}')
     
     # X source is periods, target is col --> error
     if scol == 'p' and tcol != 'p':
         ensure(False, f'Cannot map source var periods ({args[1]}) to a target var column ({args[3]}).')
 
     if tcol == 'p':
-        cells = t.get_period_cells_for_row(tv)
+        cells = t.get_period_cells_for_row(tv_row)
         if scol == 'p':
             # ✔ source is periods, target is periods
-            sources = s.get_period_cells_for_row(sv)
+            sources = s.get_period_cells_for_row(sv_row)
             for i, cell in enumerate(cells):
                 cell.value = f'=\'{s.ref.title}\'!{sources[i].address}'
         else:
             # ✔ source is col, target is periods
             # pick up the same source repeatedly
-            source = s.get_row_col_ref(sv, s.get_col(scol))
+            source = s.get_row_col_ref(sv_row, s.get_col(scol))
             for i, cell in enumerate(cells):
                 cell.value = f'={source}'
-            print(cells)
-        t.update_period_cells(tv, cells)
+        t.update_period_cells(tv_row, cells)
         # t.ref.update_cells(cells, 'USER_ENTERED')
         print(f'✔ Done.')
 

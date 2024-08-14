@@ -257,11 +257,13 @@ class Tab:
         cellList = self.ref.range(row, self.get_pcol(), row, self.get_pcol() + self.sheet.settings['periods'] - 1)
         return cellList
     
-    def update_period_cells(self, row, cells: List[gspread.cell.Cell]):
+    def update_period_cells(self, row: int, cells: List[gspread.cell.Cell]):
         startRow = row
         startCol = self.get_pcol()
         vals = [[c.value for c in cells]]
         gapi.update_cells(self.ref, startRow, startCol, vals)
+    def update_cell(self, row: int, col: int, val):
+        gapi.update_cells(self.ref, row, col, [[val]])
     
     def expand_periods(self):
         if self.get_pcol() is None:
@@ -315,8 +317,6 @@ class SummaryTab:
     def summarize(self):
         groups = self.period_group_count()
 
-        print(self.sheet.summary_vars)
-
         groupRows: List[int] = []
         groupVals: List[List[str]] = []
 
@@ -331,10 +331,10 @@ class SummaryTab:
             # add rows
             baseRow = self.tab.get_var_row(sv[0])
 
-            # map
+            # walk each tab that has this variable
+            row = 0
             for t in self.sheet.tabs.values():
                 if t.type == 'dynamic':
-                    row = 0
                     if sv[0] in t.vars:
                         # print(f'{t.name} has {sv[0]}')
                         row += 1
@@ -351,13 +351,39 @@ class SummaryTab:
                                 # sum, average, or other worksheet function
                                 v = f'={sv[1]}({self.period_group_range_ref_for_row(baseRow + row, n)})'
                             vs.append(v)
+
+                        # cached group values for later
                         groupVals.append(vs)
                         groupRows.append(baseRow + row)
+
+            if row > 0:
+                # having at least 1 row means we should also add a total
+                vs: List[str] = []
+                for n in range(0, groups):
+                    if sv[1] == 'last':
+                        v = f'={self.period_group_ref_for_last(baseRow, n)}'
+                        pass
+                    elif sv[1] in ['sum','average']:
+                        # sum, average, or other worksheet function
+                        v = f'={sv[1]}({self.period_group_range_ref_for_row(baseRow, n)})'
+                    vs.append(v)
+
+                # cached group values for later
+                groupVals.append(vs)
+                groupRows.append(baseRow)
 
             gapi.duplicate_row(self.ref, baseRow, len(cellRefs))
             for k in self.tab.vars:
                 if self.tab.get_var_row(k) > baseRow:
                     self.tab.nudge_var_row(k, len(cellRefs))
+
+            if row > 0:
+                # put sum in baseRow
+                col_letter = col_num_to_letter(self.tab.get_pcol())
+                v = f'=sum({col_letter}{baseRow + 1}:{col_letter}{baseRow + 1 + row})'
+                self.tab.update_cell(baseRow, self.tab.get_pcol(), v)
+                # cache group values for later
+
             # add cell references
             cellValues = [[v] for v in cellRefs]
             tabNameValues = [[v] for v in tabNames]
@@ -367,7 +393,11 @@ class SummaryTab:
             # remove original row
 
         # extend periods
+        # this will then also capture and copy-paste the cell refs
         self.tab.expand_periods()
+
+        # collapse period cols
+        gapi.group_columns(self.tab.ref, self.tab.get_pcol() - 1, self.tab.get_pcol() + self.sheet.settings['periods'] - 1)
 
         # add summary col groups
         if groups > 1:
