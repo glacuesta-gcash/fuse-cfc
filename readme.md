@@ -181,10 +181,10 @@ If using scenarios, one Summary tab will be generated for each scenario, labeled
 
 ### To-do
 
-X Group periods, including last, sum, average
+- ✔ Group periods, including last, sum, average
 - Multirow vars
 - :col specification in commands
-X Asynchronous threads for combining read and write ops
+- ✔ Asynchronous threads for combining read and write ops
 - Automatic determination of when to flush (when switching between read and write ops)
 
 ---

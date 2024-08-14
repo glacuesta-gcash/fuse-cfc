@@ -46,7 +46,9 @@ class Sheet:
         self.tabs: Dict[str, Tab] = {}
         self.steps_tab: StepsTab = None
         self.summary_tab: SummaryTab = None
+        timer = Timer()
         all_sheets = self.ref.worksheets()
+        print(f'  Sheets loaded. {timer.check()}')
         self.raw_tab_count = len(all_sheets)
 
         self.settings = {
@@ -141,6 +143,10 @@ class Sheet:
         self.tabs[sheet.title[1:]] = newTab # do not include prefix
         return newTab
     
+    def get_tab(self, tab_name: str) -> 'Tab':
+        assert tab_name in self.tabs, f'Tab "{tab_name}" not found!'
+        return self.tabs[tab_name]
+
     def flush(self):
         gapi.flush_requests(self.ref)
 
@@ -172,6 +178,14 @@ class Tab:
             self.gcol = copy_attributes_from.gcol
         print(f'✔ Tab {self.ref.title} registered. {len(self.vars)} variable(s). Period column {"not " if self.pcol is None else ""}found. Period Group column {"not " if self.gcol is None else ""}found. {timer.check()}')
 
+    def get_var_row(self, var: str) -> int:
+        assert var in self.vars, f'Variable "{var}" not found in tab "{self.name}"!'
+        return self.vars[var]
+    
+    def nudge_var_row(self, var: str, delta: int):
+        assert var in self.vars, f'Variable "{var}" not found in tab "{self.name}"!'
+        self.vars[var] += delta
+    
     def find_index_with_value(self, row_vals, val) -> int:
         try:
             index = row_vals.index(val) + 1
@@ -270,14 +284,14 @@ class SummaryTab:
 
         # sort summary_vars according to position on summary tab, to avoid outdated cell refs in cell updates
         # lowest first
-        self.sheet.summary_vars.sort(key=lambda sv: self.tab.vars[sv[0]])
+        self.sheet.summary_vars.sort(key=lambda sv: self.tab.get_var_row(sv[0]))
 
         for sv in self.sheet.summary_vars:
             cellRefs: List[str] = []
             tabNames: List[str] = []
 
             # add rows
-            baseRow = self.tab.vars[sv[0]]
+            baseRow = self.tab.get_var_row(sv[0])
 
             # map
             for t in self.sheet.tabs.values():
@@ -286,7 +300,7 @@ class SummaryTab:
                     if sv[0] in t.vars:
                         # print(f'{t.name} has {sv[0]}')
                         row += 1
-                        cellValues = t.get_period_cells_for_row(t.vars[sv[0]])
+                        cellValues = t.get_period_cells_for_row(t.get_var_row(sv[0]))
                         cellRefs.append(f'=\'{t.ref.title}\'!{cellValues[0].address}')
                         tabNames.append(t.name)
                         # calculate and store group summaries
@@ -304,8 +318,8 @@ class SummaryTab:
 
             gapi.duplicate_row(self.ref, baseRow, len(cellRefs))
             for k in self.tab.vars:
-                if self.tab.vars[k] > baseRow:
-                    self.tab.vars[k] += len(cellRefs)
+                if self.tab.get_var_row(k) > baseRow:
+                    self.tab.nudge_var_row(k, len(cellRefs))
             # add cell references
             cellValues = [[v] for v in cellRefs]
             tabNameValues = [[v] for v in tabNames]

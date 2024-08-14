@@ -52,10 +52,10 @@ def cmd_spawn(sheet: Sheet, args):
 
 def cmd_map(sheet: Sheet, args):
     assertMinArgs(args, 4)
-    s = getTab(sheet, args[0])
-    t = getTab(sheet, args[2])
-    sv = getVar(s, args[1])
-    tv = getVar(t, args[3])
+    s = sheet.get_tab(args[0])
+    t = sheet.get_tab(args[2])
+    sv = s.get_var_row(args[1])
+    tv = t.get_var_row(args[3])
 
     sources = s.get_period_cells_for_row(sv)
     cells = t.get_period_cells_for_row(tv)
@@ -67,8 +67,8 @@ def cmd_map(sheet: Sheet, args):
 
 def cmd_trend(sheet: Sheet, args):
     assertMinArgs(args, 6)
-    t = getTab(sheet, args[0])
-    tv = getVar(t, args[1])
+    t = sheet.get_tab(args[0])
+    tv = t.get_var_row(t, args[1])
     startP = period_index(args[2])
     endP = period_index(args[3])
     periods = endP - startP
@@ -90,8 +90,8 @@ def cmd_trend(sheet: Sheet, args):
 
 def cmd_bump(sheet: Sheet, args):
     assertMinArgs(args, 4)
-    t = getTab(sheet, args[0])
-    tv = getVar(t, args[1])
+    t = sheet.get_tab(args[0])
+    tv = t.get_var_row(args[1])
     startP = period_index(args[2])
     v = float(args[3])
     cells = t.get_period_cells_for_row(tv)
@@ -106,11 +106,3 @@ def cmd_bump(sheet: Sheet, args):
 
 def assertMinArgs(args, min):
     assert len(args) >= min, f'Not enough arguments, we need at least {min}.'
-
-def getTab(sheet, tabName):
-    assert tabName in sheet.tabs, f'Tab "{tabName}" not found!'
-    return sheet.tabs[tabName]
-
-def getVar(tab: Tab, varName):
-    assert varName in tab.vars, f'Variable "{varName}" not found in tab "{tab.name}"!'
-    return tab.vars[varName]
