@@ -1,8 +1,9 @@
-from typing import List
+from typing import List, Tuple
 
 from sheet import Sheet, Tab
 
 from utils import period_index, ensure
+import gapi
 
 class Command:
     def __init__(self, args: List[str]):
@@ -50,20 +51,51 @@ def cmd_spawn(sheet: Sheet, args):
     sheet.tabs[args[0]].duplicate(newTitle=args[1])
     return
 
+def parse_var(tab: Tab, arg: str) -> Tuple[int, str]:
+    if ':' in arg:
+        a, b = arg.split(':')
+        row = tab.get_var_row(a)
+        return [row, b]
+    else:
+        row = tab.get_var_row(arg)
+        return [row, 'p']
+
 def cmd_map(sheet: Sheet, args):
+    # map [source tab] [source var] [target tab] [target var]
+    # map [source tab] [source var]:[source col] [target tab] [target var]:[target col]
     assertMinArgs(args, 4)
     s = sheet.get_tab(args[0])
     t = sheet.get_tab(args[2])
-    sv = s.get_var_row(args[1])
-    tv = t.get_var_row(args[3])
+    sv, scol = parse_var(s, args[1])
+    tv, tcol = parse_var(t, args[3])
 
-    sources = s.get_period_cells_for_row(sv)
-    cells = t.get_period_cells_for_row(tv)
-    for i, cell in enumerate(cells):
-        cell.value = f'=\'{s.ref.title}\'!{sources[i].address}'
-    t.ref.update_cells(cells, 'USER_ENTERED')
-    print(f'✔ Done.')
-    return
+    # var may be multi-row
+
+    # cases:
+    # source is col, target is col
+    # TO-DO
+    
+    # X source is periods, target is col --> error
+    if scol == 'p' and tcol != 'p':
+        ensure(False, f'Cannot map source var periods ({args[1]}) to a target var column ({args[3]}).')
+
+    if tcol == 'p':
+        cells = t.get_period_cells_for_row(tv)
+        if scol == 'p':
+            # ✔ source is periods, target is periods
+            sources = s.get_period_cells_for_row(sv)
+            for i, cell in enumerate(cells):
+                cell.value = f'=\'{s.ref.title}\'!{sources[i].address}'
+        else:
+            # ✔ source is col, target is periods
+            # pick up the same source repeatedly
+            source = s.get_row_col_ref(sv, s.get_col(scol))
+            for i, cell in enumerate(cells):
+                cell.value = f'={source}'
+            print(cells)
+        t.update_period_cells(tv, cells)
+        # t.ref.update_cells(cells, 'USER_ENTERED')
+        print(f'✔ Done.')
 
 def cmd_trend(sheet: Sheet, args):
     assertMinArgs(args, 6)

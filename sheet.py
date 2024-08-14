@@ -220,6 +220,9 @@ class Tab:
     def nudge_gcol(self, delta):
         self.nudge_col('g', delta)
         self.gcol = self.get_col('g')
+
+    def get_row_col_ref(self, row, col, idx = 0) -> str:
+        return f'\'{self.ref.title}\'!{col_num_to_letter(col)}{row + idx}'
     
     def find_index_with_value(self, row_vals, val) -> int:
         try:
