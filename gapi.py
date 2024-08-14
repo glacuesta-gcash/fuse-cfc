@@ -137,6 +137,8 @@ def duplicate_column(sheet: gspread.worksheet.Worksheet, sourceCol: int, times: 
     queue_requests(requests)
 
 def duplicate_row(sheet: gspread.worksheet.Worksheet, sourceRow: int, times: int = 1):
+    if times == 0:
+        return
     requests = [
         # Request to insert a new column at index 1 (B)
         {
@@ -188,10 +190,8 @@ def flush_requests(spreadsheet: gspread.spreadsheet.Spreadsheet):
         print('No commands queued to flush.')
         return
     
-    # pprint(request_queue)
-    print(f'  {[list(req.keys())[0] for req in request_queue]}')
-
     print(f'  → Executing {len(request_queue)} queued command(s)...')
+    print(f'    {[list(req.keys())[0] for req in request_queue]}')
     # Execute the requests
     body = {
         'requests': request_queue

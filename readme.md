@@ -185,7 +185,6 @@ X Group periods, including last, sum, average
 - Multirow vars
 - :col specification in commands
 X Asynchronous threads for combining read and write ops
-- Include tab duplication in batch update calls; reserve coloring the tabs to the end
 - Automatic determination of when to flush (when switching between read and write ops)
 
 ---

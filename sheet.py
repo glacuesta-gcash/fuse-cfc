@@ -39,9 +39,10 @@ class Sheet:
         return tasks
     
     def __init__(self, sheetKey: str):
-        print('⇨ Connecting to Sheet...')
+        timer = Timer()
+        print('⇨ Connecting to Sheet...', end='')
         self.ref = client.open_by_key(sheetKey)
-        print('✔ Connected.')
+        print(f'connected. {timer.check()}')
         self.tabs: Dict[str, Tab] = {}
         self.steps_tab: StepsTab = None
         self.summary_tab: SummaryTab = None
@@ -78,7 +79,7 @@ class Sheet:
             partial(gapi.flush_requests, self.ref), 
             partial(gapi.read_ranges, self.ref, ranges_to_read)
         ))
-        print(f'✔ Done with parallel calls {timer.check()}')
+        print(f'  Done with parallel calls {timer.check()}')
         
         # cache tab headers
         raw_tab_vals = results[1]
@@ -99,10 +100,8 @@ class Sheet:
 
         for sheet in all_sheets:
             if sheet.title == '_steps':
-                timer = Timer()
                 print('✔ Capturing Steps tab...')
                 self.steps_tab = StepsTab(sheet, full_cache)
-                print(f'Done {timer.check()}')
             elif sheet.title == '_summary':
                 print('✔ Capturing Summary tab...')
                 self.summary_tab = self.register_summary_tab(
@@ -227,6 +226,7 @@ class Tab:
 
 class StepsTab:
     def __init__(self, worksheet: gspread.worksheet.Worksheet, cached_cells = None):
+        timer = Timer()
         self.ref = worksheet
         if cached_cells is not None and 'steps' in cached_cells:
             self.steps = cached_cells['steps']
@@ -237,7 +237,7 @@ class StepsTab:
             while step[-1] == "":
                 step.pop()
         self.cursor = 0
-        print(f'  {len(self.steps)} steps found.')
+        print(f'  {len(self.steps)} steps found. {timer.check()}')
 
     def read_next_command(self) -> List[str]:
         if self.cursor >= len(self.steps):
@@ -267,6 +267,10 @@ class SummaryTab:
 
         groupRows: List[int] = []
         groupVals: List[List[str]] = []
+
+        # sort summary_vars according to position on summary tab, to avoid outdated cell refs in cell updates
+        # lowest first
+        self.sheet.summary_vars.sort(key=lambda sv: self.tab.vars[sv[0]])
 
         for sv in self.sheet.summary_vars:
             cellRefs: List[str] = []
@@ -299,6 +303,9 @@ class SummaryTab:
                         groupRows.append(baseRow + row)
 
             gapi.duplicate_row(self.ref, baseRow, len(cellRefs))
+            for k in self.tab.vars:
+                if self.tab.vars[k] > baseRow:
+                    self.tab.vars[k] += len(cellRefs)
             # add cell references
             cellValues = [[v] for v in cellRefs]
             tabNameValues = [[v] for v in tabNames]
