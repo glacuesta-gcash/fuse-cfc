@@ -51,14 +51,14 @@ def cmd_spawn(sheet: Sheet, args):
     sheet.tabs[args[0]].duplicate(newTitle=args[1], expand_periods=True)
     return
 
-def parse_var(tab: Tab, arg: str) -> Tuple[int, str]:
+def parse_var(tab: Tab, arg: str) -> Tuple[Tuple[int, int], str]:
     if ':' in arg:
         a, b = arg.split(':')
-        row = tab.get_var_row(a)
-        return [row, b]
+        var = tab.get_var_rows(a)
+        return [var, b]
     else:
-        row = tab.get_var_row(arg)
-        return [row, 'p']
+        var = tab.get_var_rows(arg)
+        return [var, 'p']
 
 def cmd_map(sheet: Sheet, args):
     # map [source tab] [source var] [target tab] [target var]
@@ -69,7 +69,12 @@ def cmd_map(sheet: Sheet, args):
     sv_row, scol = parse_var(s, args[1])
     tv_row, tcol = parse_var(t, args[3])
 
+    # wip - row to multirow var
+
     # var may be multi-row
+
+    ensure(s.get_col(scol) is not None, f'Source tab does not have column "{scol}".')
+    ensure(t.get_col(tcol) is not None, f'Target tab does not have column "{tcol}".')
 
     # cases:
     # source is col, target is col
