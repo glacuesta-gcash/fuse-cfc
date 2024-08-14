@@ -8,7 +8,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 
-from utils import col_num_to_letter
+from utils import col_num_to_letter, ensure
 from timer import Timer
 
 import gapi
@@ -144,7 +144,7 @@ class Sheet:
         return newTab
     
     def get_tab(self, tab_name: str) -> 'Tab':
-        assert tab_name in self.tabs, f'Tab "{tab_name}" not found!'
+        ensure(tab_name in self.tabs, f'Tab "{tab_name}" not found!')
         return self.tabs[tab_name]
 
     def flush(self):
@@ -164,27 +164,62 @@ class Tab:
         self.id = worksheet.id
         self.name = worksheet.title[1:]
         self.type = 'input' if worksheet.title[0] == '_' else 'dynamic'
+
+        self.vars: Dict[str, Tuple[int, int]] = {} # label -> row, count
+        self.cols: Dict[str, int] = {} # label -> col
+
         if copy_attributes_from == None:
+            col_vars = cached_col_headers[self.name] if self.name in cached_col_headers else self.ref.col_values(1)
             # cache var references
-            colVars = cached_col_headers[self.name] if self.name in cached_col_headers else self.ref.col_values(1)
-            self.vars = {str(value): row + 1 for row, value in enumerate(colVars) if value}
+            temp = {str(value): row + 1 for row, value in enumerate(col_vars) if value}
+            for t in temp:
+                if '|' in t:
+                    var, rows = t.split('|')
+                    self.vars[var] = [temp[t], rows]
+                else:
+                    self.vars[t] = [temp[t], 1]
             # find p column
             row_vals = cached_row_headers[self.name] if self.name in cached_row_headers else self.ref.row_values(1)
+            self.cols = {str(value): col + 1 for col, value in enumerate(row_vals) if value}
             self.pcol = self.find_index_with_value(row_vals, 'p')
             self.gcol = self.find_index_with_value(row_vals, 'g')
         else:
             self.vars = copy_attributes_from.vars
+            self.cols = copy_attributes_from.cols
             self.pcol = copy_attributes_from.pcol
             self.gcol = copy_attributes_from.gcol
         print(f'✔ Tab {self.ref.title} registered. {len(self.vars)} variable(s). Period column {"not " if self.pcol is None else ""}found. Period Group column {"not " if self.gcol is None else ""}found. {timer.check()}')
 
     def get_var_row(self, var: str) -> int:
-        assert var in self.vars, f'Variable "{var}" not found in tab "{self.name}"!'
+        ensure(var in self.vars, f'Variable "{var}" not found in tab "{self.name}"!')
+        return self.vars[var][0]
+    def get_var_rows(self, var: str) -> Tuple[int, int]:
+        ensure(var in self.vars, f'Variable "{var}" not found in tab "{self.name}"!')
         return self.vars[var]
     
     def nudge_var_row(self, var: str, delta: int):
-        assert var in self.vars, f'Variable "{var}" not found in tab "{self.name}"!'
-        self.vars[var] += delta
+        ensure(var in self.vars, f'Variable "{var}" not found in tab "{self.name}"!')
+        self.vars[var][0] += delta
+
+    def get_col(self, label: str) -> int:
+        ensure(label in self.cols, f'Column "{label}" not found in tab "{self.name}"!')
+        return self.cols[label]
+    def get_pcol(self) -> int:
+        return self.pcol
+    def get_gcol(self) -> int:
+        return self.gcol
+    def nudge_col(self, label, delta):
+        if label in self.cols:
+            base = self.cols[label]
+            for i in self.cols:
+                if self.cols[i] >= base:
+                    self.cols[i] += delta
+    def nudge_pcol(self, delta):
+        self.nudge_col('p', delta)
+        self.pcol = self.get_col('p')
+    def nudge_gcol(self, delta):
+        self.nudge_col('g', delta)
+        self.gcol = self.get_col('g')
     
     def find_index_with_value(self, row_vals, val) -> int:
         try:
@@ -216,26 +251,26 @@ class Tab:
         return newTab
     
     def get_period_cells_for_row(self, row) -> List[gspread.cell.Cell]:
-        cellList = self.ref.range(row, self.pcol, row, self.pcol + self.sheet.settings['periods'] - 1)
+        cellList = self.ref.range(row, self.get_pcol(), row, self.get_pcol() + self.sheet.settings['periods'] - 1)
         return cellList
     
     def update_period_cells(self, row, cells: List[gspread.cell.Cell]):
         startRow = row
-        startCol = self.pcol
+        startCol = self.get_pcol()
         vals = [[c.value for c in cells]]
         gapi.update_cells(self.ref, startRow, startCol, vals)
     
     def expand_periods(self):
-        if self.pcol is None:
+        if self.get_pcol() is None:
             return
         # duplicate p column as needed
-        gapi.duplicate_column(self.ref, self.pcol, self.sheet.settings['periods'] - 1)
+        gapi.duplicate_column(self.ref, self.get_pcol(), self.sheet.settings['periods'] - 1)
         cells = self.get_period_cells_for_row(1)
         for i, cell in enumerate(cells):
             cell.value = f'P{i+1}'
         self.update_period_cells(1, cells)
-        if self.gcol is not None and self.gcol > self.pcol:
-            self.gcol += self.sheet.settings['periods']
+        if self.get_gcol() is not None and self.get_gcol() > self.get_pcol():
+            self.nudge_gcol(self.sheet.settings['periods'] - 1)
         #self.ref.update_cells(cells)
 
 class StepsTab:
@@ -272,7 +307,7 @@ class SummaryTab:
 
         self.tab.type = 'summary'
         gapi.insert_column(self.ref, 1, 1)
-        self.tab.pcol += 1
+        self.tab.nudge_pcol(1)
 
     def summarize(self):
         groups = self.period_group_count()
@@ -324,7 +359,7 @@ class SummaryTab:
             cellValues = [[v] for v in cellRefs]
             tabNameValues = [[v] for v in tabNames]
             # self.summaryTab.ref.update_cells(cells, 'USER_ENTERED')
-            gapi.update_cells(self.ref, baseRow + 1, self.tab.pcol, cellValues) # skip baseRow as that's the orig
+            gapi.update_cells(self.ref, baseRow + 1, self.tab.get_pcol(), cellValues) # skip baseRow as that's the orig
             gapi.update_cells(self.ref, baseRow + 1, 2, tabNameValues) # skip baseRow as that's the orig
             # remove original row
 
@@ -333,13 +368,13 @@ class SummaryTab:
 
         # add summary col groups
         if groups > 1:
-            gapi.duplicate_column(self.ref, self.tab.gcol, groups - 1)
+            gapi.duplicate_column(self.ref, self.tab.get_gcol(), groups - 1)
         group_labels = [[self.period_group_label(n) for n in range(0, groups)]]
         self.update_period_group_values_for_row(1, group_labels)
 
         # add group summaries
         for i in range(0,len(groupRows)):
-            gapi.update_cells(self.ref, groupRows[i], self.tab.gcol, [groupVals[i]]) # put in [] to make it one row
+            gapi.update_cells(self.ref, groupRows[i], self.tab.get_gcol(), [groupVals[i]]) # put in [] to make it one row
 
     def period_group_count(self) -> int:
         return int((self.sheet.settings['periods'] - self.sheet.settings['summary-start'] + 1) / self.sheet.settings['summary-periods'])
@@ -353,11 +388,11 @@ class SummaryTab:
         return self.period_group_start(groupIndex + 1) - 1
     
     def period_group_range_ref_for_row(self, row: int, groupIndex: int) -> str:
-        ref = f'{col_num_to_letter(self.tab.pcol + self.period_group_start(groupIndex)-1)}{row}:{col_num_to_letter(self.tab.pcol + self.period_group_end(groupIndex)-1)}{row}'
+        ref = f'{col_num_to_letter(self.tab.get_pcol() + self.period_group_start(groupIndex)-1)}{row}:{col_num_to_letter(self.tab.get_pcol() + self.period_group_end(groupIndex)-1)}{row}'
         return ref
     def period_group_ref_for_last(self, row: int, groupIndex: int) -> str:
-        ref = f'{col_num_to_letter(self.tab.pcol + self.period_group_end(groupIndex)-1)}{row}'
+        ref = f'{col_num_to_letter(self.tab.get_pcol() + self.period_group_end(groupIndex)-1)}{row}'
         return ref
     
     def update_period_group_values_for_row(self, row: int, vals: List[any]):
-        gapi.update_cells(self.ref, row, self.tab.gcol, vals)
+        gapi.update_cells(self.ref, row, self.tab.get_gcol(), vals)

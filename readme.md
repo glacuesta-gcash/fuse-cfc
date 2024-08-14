@@ -128,12 +128,16 @@ Copies the tab `[source tab]` to `[new tab]`. The new tab will be given the pref
 
 Sets the value of the variable to val, starting at `[start period]` all the way to the end of the forecast.
 
+> Note: Bump cannot be performed on a multi-row variable
+
 #### Trend
 `trend [tab] [var] [start period] [end period] [start val] [end val] *[method]`
 
 Apply a trend (e.g. growth over time) onto a variable in a given tab. The variable will be blended from `[start val]` in `[start period]` to `[end val]` in `[end period]`, depending on the `[method]` (defaults to linear if omitted):
 - `linear` - Straight linear growth
 - `expo` - Use a fixed periodic growth rate
+
+> Note: Trend cannot be performed on a multi-row variable
 
 #### Map
 `map [source tab] [source var] [target tab] [target var]`
@@ -186,6 +190,7 @@ If using scenarios, one Summary tab will be generated for each scenario, labeled
 - :col specification in commands
 - ✔ Asynchronous threads for combining read and write ops
 - Automatic determination of when to flush (when switching between read and write ops)
+- Group raw period columns in summary
 
 ---
 2024 G Lacuesta

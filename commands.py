@@ -2,7 +2,7 @@ from typing import List
 
 from sheet import Sheet, Tab
 
-from utils import period_index
+from utils import period_index, ensure
 
 class Command:
     def __init__(self, args: List[str]):
@@ -68,7 +68,8 @@ def cmd_map(sheet: Sheet, args):
 def cmd_trend(sheet: Sheet, args):
     assertMinArgs(args, 6)
     t = sheet.get_tab(args[0])
-    tv = t.get_var_row(t, args[1])
+    tv, rows = t.get_var_rows(args[1])
+    ensure(rows == 1, f'{args[1]} is a multi-row variable, trend cannot be performed on it.')
     startP = period_index(args[2])
     endP = period_index(args[3])
     periods = endP - startP
@@ -91,7 +92,8 @@ def cmd_trend(sheet: Sheet, args):
 def cmd_bump(sheet: Sheet, args):
     assertMinArgs(args, 4)
     t = sheet.get_tab(args[0])
-    tv = t.get_var_row(args[1])
+    tv, rows = t.get_var_rows(args[1])
+    ensure(rows == 1, f'{args[1]} is a multi-row variable, bump cannot be performed on it.')
     startP = period_index(args[2])
     v = float(args[3])
     cells = t.get_period_cells_for_row(tv)
@@ -105,4 +107,4 @@ def cmd_bump(sheet: Sheet, args):
 # Utilities
 
 def assertMinArgs(args, min):
-    assert len(args) >= min, f'Not enough arguments, we need at least {min}.'
+    ensure(len(args) >= min, f'Not enough arguments, we need at least {min}.')
