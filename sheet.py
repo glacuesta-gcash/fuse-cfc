@@ -10,8 +10,8 @@ from googleapiclient.discovery import build
 
 from utils import col_num_to_letter, ensure
 from timer import Timer
-
 import gapi
+import consts
 
 # Define the scope
 scope = [
@@ -62,15 +62,15 @@ class Sheet:
         # also, pull values from all input and summary tabs
         ranges_to_read: List[str] = []
         for sheet in all_sheets:
-            if sheet.title[0] == '-':
+            if sheet.title[0] == consts.TAB_PREFIX_DYNAMIC:
                 # generated tab, for cleanup
                 gapi.delete_tab(sheet)
                 # self.ref.del_worksheet(t)
                 self.raw_tab_count -= 1
                 print(f'→ Tab "{sheet.title}" removed.')
-            elif sheet.title == '_steps':
+            elif sheet.title == consts.TAB_TITLE_STEPS:
                 ranges_to_read.append(sheet.title)
-            elif sheet.title[0] == '_':
+            elif sheet.title[0] == consts.TAB_PREFIX_INPUT:
                 # steps, summary, or input
                 ranges_to_read.append(f'\'{sheet.title}\'!A1:1')
                 ranges_to_read.append(f'\'{sheet.title}\'!A1:A')
@@ -89,9 +89,9 @@ class Sheet:
         row_headers_cache: Dict[str,List[str]] = {}
         full_cache: Dict[str,List[List[str]]] = {}
         for key in raw_tab_vals:
-            re_match = re.search(r'\'_(.*)\'\!', key)
+            re_match = re.search(fr'\'{consts.TAB_PREFIX_INPUT}(.*)\'\!', key)
             tab_name = re_match.group(1)
-            if '_steps' in key:
+            if consts.TAB_TITLE_STEPS in key:
                 full_cache[tab_name] = raw_tab_vals[key]
             elif 'A1:A' in key:
                 # header column
@@ -101,17 +101,17 @@ class Sheet:
                 row_headers_cache[tab_name] = raw_tab_vals[key][0] if len(raw_tab_vals[key]) > 0 else []
 
         for sheet in all_sheets:
-            if sheet.title == '_steps':
+            if sheet.title == consts.TAB_TITLE_STEPS:
                 print('✔ Capturing Steps tab...')
                 self.steps_tab = StepsTab(sheet, full_cache)
-            elif sheet.title == '_summary':
+            elif sheet.title == consts.TAB_TITLE_SUMMARY:
                 print('✔ Capturing Summary tab...')
                 self.summary_tab = self.register_summary_tab(
                     sheet, 
                     cached_row_headers=row_headers_cache, 
                     cached_col_headers=col_headers_cache
                     )
-            elif sheet.title[0] == '_':
+            elif sheet.title[0] == consts.TAB_PREFIX_INPUT:
                 self.register_tab(sheet, 
                                   cached_row_headers=row_headers_cache, 
                                   cached_col_headers=col_headers_cache
@@ -163,7 +163,7 @@ class Tab:
         self.sheet = sheet
         self.id = worksheet.id
         self.name = worksheet.title[1:]
-        self.type = 'input' if worksheet.title[0] == '_' else 'dynamic'
+        self.type = 'input' if worksheet.title[0] == consts.TAB_PREFIX_INPUT else 'dynamic'
 
         self.vars: Dict[str, Tuple[int, int]] = {} # label -> row, count
         self.cols: Dict[str, int] = {} # label -> col
@@ -173,8 +173,8 @@ class Tab:
             # cache var references
             temp = {str(value): row + 1 for row, value in enumerate(col_vars) if value}
             for t in temp:
-                if '|' in t:
-                    var, rows = t.split('|')
+                if consts.VAR_HEIGHT_DELIMITER in t:
+                    var, rows = t.split(consts.VAR_HEIGHT_DELIMITER)
                     self.vars[var] = [temp[t], int(rows)]
                 else:
                     self.vars[t] = [temp[t], 1]
@@ -253,7 +253,7 @@ class Tab:
             if newTitle in self.sheet.tabs and self.sheet.tabs[newTitle].type == 'dynamic':
                 raise(f'Tab has already been cloned.')
         # duplicate_sheet is NOT cached because it immediately may be referenced
-        newSheet = self.sheet.ref.duplicate_sheet(self.ref.id,new_sheet_name=f'-{newTitle}',insert_sheet_index=self.sheet.raw_tab_count)
+        newSheet = self.sheet.ref.duplicate_sheet(self.ref.id,new_sheet_name=f'{consts.TAB_PREFIX_DYNAMIC}{newTitle}',insert_sheet_index=self.sheet.raw_tab_count)
         self.sheet.raw_tab_count += 1
         # newSheet.update_tab_color('ff0000')
         gapi.update_tab_color(newSheet, { 'red': 1, 'green': 0, 'blue': 0 })

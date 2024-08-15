@@ -4,6 +4,7 @@ from sheet import Sheet, Tab
 
 from utils import period_index, ensure
 import gapi
+import consts
 
 class Command:
     def __init__(self, args: List[str]):
@@ -52,8 +53,8 @@ def cmd_spawn(sheet: Sheet, args):
     return
 
 def parse_var(tab: Tab, arg: str) -> Tuple[Tuple[int, int], str]:
-    if ':' in arg:
-        a, b = arg.split(':')
+    if consts.COL_DELIMITER in arg:
+        a, b = arg.split(consts.COL_DELIMITER)
         var = tab.get_var_rows(a)
         return [var, b]
     else:
