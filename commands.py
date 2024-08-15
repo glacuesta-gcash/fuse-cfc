@@ -66,8 +66,10 @@ def cmd_map(sheet: Sheet, args):
     assertMinArgs(args, 4)
     s = sheet.get_tab(args[0])
     t = sheet.get_tab(args[2])
-    sv_row, scol = parse_var(s, args[1])
-    tv_row, tcol = parse_var(t, args[3])
+    sv, scol = parse_var(s, args[1])
+    tv, tcol = parse_var(t, args[3])
+
+    ensure(sv[1] == tv[1], f'Mismatch in multi-row variable heights: {args[0]}→{args[1]} and {args[2]}→{args[3]}.')
 
     # wip - row to multirow var
 
@@ -79,28 +81,25 @@ def cmd_map(sheet: Sheet, args):
     # cases:
     # source is col, target is col
     if scol != 'p' and tcol != 'p':
-        source = s.get_row_col_ref(sv_row, s.get_col(scol))
-        t.update_cell(tv_row, t.get_col(tcol), f'={source}')
+        sources = s.get_var_col_refs(sv, scol)
+        mappings = [f'=\'{s.ref.title}\'!{ref}' for ref in sources]
+        t.update_cell(tv[0], t.get_col(tcol), mappings)
     
     # X source is periods, target is col --> error
     if scol == 'p' and tcol != 'p':
         ensure(False, f'Cannot map source var periods ({args[1]}) to a target var column ({args[3]}).')
 
     if tcol == 'p':
-        cells = t.get_period_cells_for_row(tv_row)
         if scol == 'p':
             # ✔ source is periods, target is periods
-            sources = s.get_period_cells_for_row(sv_row)
-            for i, cell in enumerate(cells):
-                cell.value = f'=\'{s.ref.title}\'!{sources[i].address}'
+            sources = s.get_var_col_refs(sv, scol)
+            mappings = [[f'=\'{s.ref.title}\'!{ref}' for ref in x] for x in sources]
         else:
             # ✔ source is col, target is periods
+            sources = s.get_var_col_refs(sv, scol)
             # pick up the same source repeatedly
-            source = s.get_row_col_ref(sv_row, s.get_col(scol))
-            for i, cell in enumerate(cells):
-                cell.value = f'={source}'
-        t.update_period_cells(tv_row, cells)
-        # t.ref.update_cells(cells, 'USER_ENTERED')
+            mappings = [[f'=\'{s.ref.title}\'!{ref}'] * sheet.settings['periods'] for ref in sources]
+        t.update_period_cells(tv[0], mappings)
         print(f'✔ Done.')
 
 def cmd_trend(sheet: Sheet, args):
@@ -116,13 +115,12 @@ def cmd_trend(sheet: Sheet, args):
     method = args[6] if len(args) > 6 else 'linear'
     incAdd: float = (endV - startV) / periods if method == 'linear' else 0
     incMul: float = pow(endV / startV, 1 / periods) if method == 'expo' else 1 
-    cells = t.get_period_cells_for_row(tv)
+    cells: List[str] = [''] * t.sheet.settings['periods']
     v: float = startV
-    for i, cell in enumerate(cells):
+    for i in range(len(cells)):
         if startP <= i + 1 <= endP:
-            cell.value = v
+            cells[i] = v
             v = v * incMul + incAdd
-    # t.ref.update_cells(cells, 'USER_ENTERED')
     t.update_period_cells(tv,cells)
     print(f'✔ Done.')
     return
@@ -134,11 +132,12 @@ def cmd_bump(sheet: Sheet, args):
     ensure(rows == 1, f'{args[1]} is a multi-row variable, bump cannot be performed on it.')
     startP = period_index(args[2])
     v = float(args[3])
-    cells = t.get_period_cells_for_row(tv)
-    for i, cell in enumerate(cells):
+    cells: List[str] = [''] * (t.sheet.settings['periods'] - startP + 1)
+    for i in range(len(cells)):
         if startP <= i + 1:
-            cell.value = v
-    t.ref.update_cells(cells, 'USER_ENTERED')
+            cells[i] = v
+    gapi.update_cells(t.ref, tv, t.get_pcol() + startP - 1, cells)
+    # t.ref.update_cells(cells, 'USER_ENTERED')
     print(f'✔ Done.')
     return
 

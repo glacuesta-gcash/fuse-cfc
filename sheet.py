@@ -175,7 +175,7 @@ class Tab:
             for t in temp:
                 if '|' in t:
                     var, rows = t.split('|')
-                    self.vars[var] = [temp[t], rows]
+                    self.vars[var] = [temp[t], int(rows)]
                 else:
                     self.vars[t] = [temp[t], 1]
             # find p column
@@ -223,6 +223,16 @@ class Tab:
 
     def get_row_col_ref(self, row, col, idx = 0) -> str:
         return f'\'{self.ref.title}\'!{col_num_to_letter(col)}{row + idx}'
+    def get_var_col_refs(self, var: Tuple[int, int], col: str) -> List[str] | List[List[str]]:
+        print(var)
+        baseRow = var[0]
+        count = var[1]
+        baseCol = self.get_col(col)
+        if col == 'p':
+            result = [[f'{col_num_to_letter(baseCol + x)}{baseRow + y}' for x in range(0, self.sheet.settings['periods'])] for y in range(0, count)]
+        else:
+            result = [f'{col_num_to_letter(baseCol)}{baseRow + y}' for y in range(0, count)]
+        return result
     
     def find_index_with_value(self, row_vals, val) -> int:
         try:
@@ -257,22 +267,24 @@ class Tab:
         cellList = self.ref.range(row, self.get_pcol(), row, self.get_pcol() + self.sheet.settings['periods'] - 1)
         return cellList
     
-    def update_period_cells(self, row: int, cells: List[gspread.cell.Cell]):
+    def update_period_cells(self, row: int, vals: List[str | List[str]]):
+        """If vals is a List of Lists then it's rows x cols, otherwise a single row."""
         startRow = row
         startCol = self.get_pcol()
-        vals = [[c.value for c in cells]]
-        gapi.update_cells(self.ref, startRow, startCol, vals)
-    def update_cell(self, row: int, col: int, val):
-        gapi.update_cells(self.ref, row, col, [[val]])
+        gapi.update_cells(self.ref, startRow, startCol, vals if isinstance(vals[0],List) else [vals])
+
+    def update_cell(self, row: int, col: int, vals: str | List[str]):
+        """Can accept a vertical stack, by passing List[str] to val."""
+        gapi.update_cells(self.ref, row, col, [[c] for c in vals] if isinstance(vals, List) else [[vals]])
     
     def expand_periods(self):
         if self.get_pcol() is None:
             return
         # duplicate p column as needed
         gapi.duplicate_column(self.ref, self.get_pcol(), self.sheet.settings['periods'] - 1)
-        cells = self.get_period_cells_for_row(1)
-        for i, cell in enumerate(cells):
-            cell.value = f'P{i+1}'
+        cells: List[str] = [''] * self.sheet.settings['periods']
+        for i in range(len(cells)):
+            cells[i] = f'P{i+1}'
         self.update_period_cells(1, cells)
         if self.get_gcol() is not None and self.get_gcol() > self.get_pcol():
             self.nudge_gcol(self.sheet.settings['periods'] - 1)
