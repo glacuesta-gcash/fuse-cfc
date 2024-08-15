@@ -221,7 +221,8 @@ def flush_requests(spreadsheet: gspread.spreadsheet.Spreadsheet):
         return
     
     print(f'  → Executing {len(request_queue)} queued command(s)...')
-    print(f'    {[list(req.keys())[0] for req in request_queue]}')
+    if False: # set to True for verbose output
+        print(f'    {[list(req.keys())[0] for req in request_queue]}')
     # Execute the requests
     body = {
         'requests': request_queue

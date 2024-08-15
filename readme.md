@@ -186,7 +186,7 @@ If using scenarios, one Summary tab will be generated for each scenario, labeled
 ### To-do
 
 - ✔ Group periods, including last, sum, average
-- Multirow vars
+- ✔ Multirow vars
 - ✔ :col specification in commands (map)
 - ✔ Asynchronous threads for combining read and write ops
 - Batch update for spawn and build
