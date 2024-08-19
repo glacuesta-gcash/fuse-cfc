@@ -181,15 +181,20 @@ class Tab:
             # find p column
             row_vals = cached_row_headers[self.name] if self.name in cached_row_headers else self.ref.row_values(1)
             self.cols = {str(value): col + 1 for col, value in enumerate(row_vals) if value}
-            self.pcol = self.find_index_with_value(row_vals, 'p')
-            self.gcol = self.find_index_with_value(row_vals, 'g')
+            self.pcol = self.get_pcol()
+            self.gcol = self.get_gcol()
         else:
             self.vars = copy_attributes_from.vars
             self.cols = copy_attributes_from.cols
             self.pcol = copy_attributes_from.pcol
             self.gcol = copy_attributes_from.gcol
-        print(f'✔ Tab {self.ref.title} registered. {len(self.vars)} variable(s). Period column {"not " if self.pcol is None else ""}found. Period Group column {"not " if self.gcol is None else ""}found. {timer.check()}')
+        print(f'✔ Tab {self.ref.title} registered. {len(self.vars)} variable(s). Period column {"not " if self.pcol is None else ""}found. {timer.check()}')
 
+    def get_pcol(self) -> int:
+        return None if 'p' not in self.cols else self.cols['p']
+    def get_gcol(self) -> int:
+        return None if 'g' not in self.cols else self.cols['g']
+    
     def get_var_row(self, var: str) -> int:
         ensure(var in self.vars, f'Variable "{var}" not found in tab "{self.name}"!')
         return self.vars[var][0]
@@ -204,10 +209,6 @@ class Tab:
     def get_col(self, label: str) -> int:
         ensure(label in self.cols, f'Column "{label}" not found in tab "{self.name}"!')
         return self.cols[label]
-    def get_pcol(self) -> int:
-        return self.pcol
-    def get_gcol(self) -> int:
-        return self.gcol
     def nudge_col(self, label, delta):
         if label in self.cols:
             base = self.cols[label]
@@ -234,13 +235,6 @@ class Tab:
             result = [f'{col_num_to_letter(baseCol)}{baseRow + y}' for y in range(0, count)]
         return result
     
-    def find_index_with_value(self, row_vals, val) -> int:
-        try:
-            index = row_vals.index(val) + 1
-        except ValueError:
-            index = None # no p column
-        return index
-
     def duplicate(self, newTitle: str = '', clone: bool = False, expand_periods: bool = False) -> 'Tab':
         timer = Timer()
         if clone is False:
@@ -327,6 +321,9 @@ class SummaryTab:
         self.tab.nudge_pcol(1)
 
     def summarize(self):
+        timer = Timer()
+        print(f'\n→ Performing summary...',end='')
+
         groups = self.period_group_count()
 
         groupRows: List[int] = []
@@ -392,7 +389,7 @@ class SummaryTab:
             if row > 0:
                 # put sum in baseRow
                 col_letter = col_num_to_letter(self.tab.get_pcol())
-                v = f'=sum({col_letter}{baseRow + 1}:{col_letter}{baseRow + 1 + row})'
+                v = f'=subtotal(9,{col_letter}{baseRow + 1}:{col_letter}{baseRow + 1 + row})'
                 self.tab.update_cell(baseRow, self.tab.get_pcol(), v)
                 # cache group values for later
 
@@ -420,6 +417,8 @@ class SummaryTab:
         # add group summaries
         for i in range(0,len(groupRows)):
             gapi.update_cells(self.ref, groupRows[i], self.tab.get_gcol(), [groupVals[i]]) # put in [] to make it one row
+
+        print(f'done. {timer.check()}')
 
     def period_group_count(self) -> int:
         return int((self.sheet.settings['periods'] - self.sheet.settings['summary-start'] + 1) / self.sheet.settings['summary-periods'])

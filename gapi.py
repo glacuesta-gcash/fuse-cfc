@@ -220,9 +220,9 @@ def flush_requests(spreadsheet: gspread.spreadsheet.Spreadsheet):
         print('No commands queued to flush.')
         return
     
-    print(f'  → Executing {len(request_queue)} queued command(s)...')
+    print(f'\n→ Executing {len(request_queue)} queued command(s)...')
     if False: # set to True for verbose output
-        print(f'    {[list(req.keys())[0] for req in request_queue]}')
+        print(f'  {[list(req.keys())[0] for req in request_queue]}')
     # Execute the requests
     body = {
         'requests': request_queue
@@ -231,7 +231,7 @@ def flush_requests(spreadsheet: gspread.spreadsheet.Spreadsheet):
     timer = Timer()
     response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet.id, body=body).execute()
 
-    print(f'  ✔ ...done executing. {timer.check()}')
+    print(f'✔ ...done executing. {timer.check()}')
     
     request_queue = []
     

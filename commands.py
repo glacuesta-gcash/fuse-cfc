@@ -43,13 +43,15 @@ def cmd_set(sheet: Sheet, args):
 def cmd_build(sheet: Sheet, args):
     if args[0] not in sheet.tabs:
         raise(f'Tab "{args[0]} not found!')
-    sheet.tabs[args[0]].duplicate(clone=True,expand_periods=True)
+    sheet.tabs[args[0]].duplicate(clone = True,expand_periods = True)
     return
 
 def cmd_spawn(sheet: Sheet, args):
     if args[0] not in sheet.tabs:
         raise(f'Tab "{args[0]} not found!')
-    sheet.tabs[args[0]].duplicate(newTitle=args[1], expand_periods=True)
+    targets = str.split(args[1],',')
+    for target in targets:
+        sheet.tabs[args[0]].duplicate(newTitle = target.strip(), expand_periods = True)
     return
 
 def parse_var(tab: Tab, arg: str) -> Tuple[Tuple[int, int], str]:

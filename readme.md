@@ -33,10 +33,38 @@ All other tabs will be ignored.
 ## Inside a tab
 
 #### Period column
-The first row (1) should be blank, except for 1 cell labeled `p` (the "period column") which shall be the one duplicated in order to fill out the forecast periods. This column can contain formulas.
+The first row is reserved for special designations and labels. It may have 1 cell labeled `p` (the "period column") which shall be the one duplicated in order to fill out the forecast periods. This column can contain formulas.
+
+<details>
+<summary>Example</summary>
+
+#### Tab `_purchases`
+        A           B           C
+    1               p
+    2   base        1000
+    3   takeup-rate 3%
+    4   takeup      =B2*B3
+
+</details>
 
 #### Other columns
-There may also be other columns with other labels in the first row, such as "p0", "consumer-low", or any other arbitrary text. These can be useful for setting up initialization columns, to the left of the period column, which are set up with static values, while the period columns follow a different formula.
+There may also be other columns with other labels in the first row, such as "p0", "consumer-low", or any other arbitrary text. These can be useful for setting up initialization columns, to the left of the period column, which are set up with static values, while the period columns follow a different formula. This can also be used in assumption tabs to have parallel sets of variables for different use cases, target markets, etc.
+
+<details>
+<summary>Example</summary>
+
+#### Tab `_assumptions`
+
+        A           B           C
+    1               consumer    merchant
+    2   takeup-rate 5%          3.2%
+    3   churn-rate  14%         8%
+
+Later on, `map` can be used to set variables in forecast tabs:
+
+`map assumptions/takeup-rate:consumer purchases-consumer/takeup-rate`
+`map assumptions/takeup-rate:merchant purchases-merchant/takeup-rate`
+</details>
 
 #### "A" Column - Reserved for variable names
 The first column (A) should only contain variable names. A variable name can end with `:x` to indicate a variable that spans multiple rows, where `x` indicates the total number of rows that variable covers.
@@ -90,10 +118,15 @@ Build out an assumption tab. A new tab will be spawned, to keep the original pri
 
 #### Spawn
 `spawn [source tab] [new tab]`
+`spawn [source tab] [new tab],[new tab]...`
 
 Copies the tab `[source tab]` to `[new tab]`. The new tab will be given the prefix `-` (hyphen) to mark it as a generated tab, and will be deleted on next execution.
 
-`build` will also be performed on the spawned tab.
+More than one new tab can be specified, by delimiting multiple names with a comma. For example:
+
+    spawn   members   mem-corp,mem-pers,mem-free
+
+`build` will also be performed on the spawned tab(s).
 
 ---
 
@@ -103,7 +136,7 @@ Copies the tab `[source tab]` to `[new tab]`. The new tab will be given the pref
 <summary>Note: Multi-row variables</summary>
 &nbsp;
 
-> If a variable in the tab follows the pattern `var_name|n` where *n* is a number, this indicates that the variable is to be treated as a stack of *n* values. Thus, the `bump`, `trend`, and `map` commands will operate on all *n* rows of that variable.
+> If a variable in the tab follows the pattern `var_name|n` where *n* is a number, this indicates that the variable is to be treated as a stack of *n* values. Thus, the `map` command will operate on all *n* rows of that variable.
 
         A           B           C           D           E
     1                           p0          p
@@ -121,17 +154,19 @@ Copies the tab `[source tab]` to `[new tab]`. The new tab will be given the pref
 
 >In the example above, referencing `age_grps` will apply to rows 3-6, and `age_txns` will apply to rows 8-11.
 
+>This is limited to the `map` command (for now).
+
 </details>
 
 #### Bump
-`bump [tab] [var] [start period] [val]`
+`bump [tab]/[var] [start period] [val]`
 
 Sets the value of the variable to val, starting at `[start period]` all the way to the end of the forecast.
 
 > Note: Bump cannot be performed on a multi-row variable
 
 #### Trend
-`trend [tab] [var] [start period] [end period] [start val] [end val] *[method]`
+`trend [tab]/[var] [start period] [end period] [start val] [end val] *[method]`
 
 Apply a trend (e.g. growth over time) onto a variable in a given tab. The variable will be blended from `[start val]` in `[start period]` to `[end val]` in `[end period]`, depending on the `[method]` (defaults to linear if omitted):
 - `linear` - Straight linear growth
@@ -140,11 +175,11 @@ Apply a trend (e.g. growth over time) onto a variable in a given tab. The variab
 > Note: Trend cannot be performed on a multi-row variable
 
 #### Map
-`map [source tab] [source var] [target tab] [target var]`
+`map [source tab]/[source var] [target tab]/[target var]`
 
 Maps one variable from one tab (the source) to another variable in another tab (the target). The mapping is done via cell reference, to make it easier for others to trace the logic in the worksheet.
 
-`map [source tab] [source var]:[source col] [target tab] [target var]:[target col]`
+`map [source tab]/[source var]:[source col] [target tab]/[target var]:[target col]`
 
 Similar to the above pattern, although here, source and target columns are specified. Given this, only 1 value will be mapped, instead of the entire time horizon.
 
@@ -165,7 +200,7 @@ Include a variable in the summary:
 
 (to do)
 
-`group [label] [tabs]`
+`group [label] [tab],[tab],[tab]...`
 
 Combine tabs into a group when summarizing. Tabs should be comma-separated. Example:
 
