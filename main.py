@@ -14,6 +14,7 @@ while cmd is not None:
     cmd = sheet.steps_tab.read_next_command()
 
 sheet.summarize()
+
 sheet.flush()
 
 print(f'\n✔ Done {timer.check()}')

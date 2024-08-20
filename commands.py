@@ -1,10 +1,15 @@
 from typing import List, Tuple
 
+import asyncio
+from functools import partial
+
 from sheet import Sheet, Tab
 
-from utils import period_index, ensure
+from utils import period_index, ensure, parallel_calls
 import gapi
 import consts
+
+from timer import Timer
 
 class Command:
     def __init__(self, args: List[str]):
@@ -50,8 +55,15 @@ def cmd_spawn(sheet: Sheet, args):
     if args[0] not in sheet.tabs:
         raise(f'Tab "{args[0]} not found!')
     targets = str.split(args[1],',')
-    for target in targets:
-        sheet.tabs[args[0]].duplicate(newTitle = target.strip(), expand_periods = True)
+    if len(targets) > 1:
+        timer = Timer()
+        partials = []
+        for target in targets:
+            partials.append(partial(sheet.tabs[args[0]].duplicate, target.strip(), False, True))
+        asyncio.run(parallel_calls(*partials))
+        print(f'✔ Parallel calls done. {timer.check()}')
+    else:
+        sheet.tabs[args[0]].duplicate(newTitle = targets[0].strip(), expand_periods = True)
     return
 
 def parse_var(tab: Tab, arg: str) -> Tuple[Tuple[int, int], str]:

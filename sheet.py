@@ -8,7 +8,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 
-from utils import col_num_to_letter, ensure
+from utils import col_num_to_letter, ensure, parallel_calls
 from timer import Timer
 import gapi
 import consts
@@ -28,16 +28,6 @@ client = gspread.authorize(creds)
 gapi.set_service(build('sheets', 'v4', credentials=creds))
 
 class Sheet:
-    async def parallel_calls(self, *partials):
-        coroutines = [
-            asyncio.create_task(
-                asyncio.to_thread(partial)
-            )
-            for partial in partials
-        ]
-        tasks = await asyncio.gather(*coroutines)
-        return tasks
-    
     def __init__(self, sheetKey: str):
         timer = Timer()
         print('⇨ Connecting to Sheet...', end='')
@@ -77,7 +67,7 @@ class Sheet:
 
         timer = Timer()
         print('→ Performing a parallel flush and read...')
-        results = asyncio.run(self.parallel_calls(
+        results = asyncio.run(parallel_calls(
             partial(gapi.flush_requests, self.ref), 
             partial(gapi.read_ranges, self.ref, ranges_to_read)
         ))
