@@ -177,11 +177,11 @@ Apply a trend (e.g. growth over time) onto a variable in a given tab. The variab
 > Note: Trend cannot be performed on a multi-row variable
 
 #### Map
-`map [source tab]/[source var] [target tab]/[target var]`
+`map [source tab] [source var] [target tab] [target var]`
 
 Maps one variable from one tab (the source) to another variable in another tab (the target). The mapping is done via cell reference, to make it easier for others to trace the logic in the worksheet.
 
-`map [source tab]/[source var]:[source col] [target tab]/[target var]:[target col]`
+`map [source tab] [source var]:[source col] [target tab] [target var]:[target col]`
 
 Similar to the above pattern, although here, source and target columns are specified. Given this, only 1 value will be mapped, instead of the entire time horizon.
 
@@ -226,7 +226,7 @@ If using scenarios, one Summary tab will be generated for each scenario, labeled
 - ✔ Multirow vars
 - ✔ :col specification in commands (map)
 - ✔ Asynchronous threads for combining read and write ops
-- Batch update for spawn and build
+- ✔ Batch update for spawn
 - ✔ Group raw period columns in summary
 
 ### Other notes

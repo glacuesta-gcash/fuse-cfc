@@ -215,7 +215,7 @@ class Tab:
     def get_row_col_ref(self, row, col, idx = 0) -> str:
         return f'\'{self.ref.title}\'!{col_num_to_letter(col)}{row + idx}'
     def get_var_col_refs(self, var: Tuple[int, int], col: str) -> List[str] | List[List[str]]:
-        print(var)
+        """May return a vertical stack if variable is multi-row"""
         baseRow = var[0]
         count = var[1]
         baseCol = self.get_col(col)
