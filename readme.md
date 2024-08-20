@@ -1,6 +1,8 @@
 # Cascading Forecasts
 
-This is the Cascading Forecasts (CFC) system.
+This is the **Cascading Forecasts (CFC)** system. It provides an automated solution for the efficient management and use of base models, for concurrent, overlapping forecasts. 
+
+While originally developed with financial forecasting in mind (in relation to annual budgeting exercises), this is a flexible and scalable system that can be used for any modeling application. It should in particular be helpful in cases where a single base model is used for multiple products or lines of business. By automating and aiding in the duplication and setup of the base model, as well as the gathering of outputs into a single summary, this simplifies forecasting by only needing the user to set up the base model once, and then just focus on the assumptions afterwards.
 
 ## Pain Points
 
@@ -226,6 +228,10 @@ If using scenarios, one Summary tab will be generated for each scenario, labeled
 - ✔ Asynchronous threads for combining read and write ops
 - Batch update for spawn and build
 - ✔ Group raw period columns in summary
+
+### Other notes
+
+- Where applicable, threading and batched updates are used to optimize Google API calls, to significantly bring down execution time.
 
 ---
 2024 G Lacuesta
