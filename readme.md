@@ -222,8 +222,9 @@ If using scenarios, one Summary tab will be generated for each scenario, labeled
 
 ### To-do
 
+- Copying/mapping from preexisting period cells (i.e. monthly input assumptions)? Is this needed though, given you can use vanilla worksheet functions to pre-map from p col.
 - ✔ Order of tabs (i.e. in spawn) should be guaranteed despite parallel/batch duplication
-- Grouping and subtotaling in summary
+- ✔ Grouping and subtotaling in summary
 - ✔ Friendly titles for tabs
 - ✔ Group periods, including last, sum, average
 - ✔ Multirow vars

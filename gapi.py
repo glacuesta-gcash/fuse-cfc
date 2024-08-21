@@ -140,7 +140,7 @@ def group_columns(sheet: gspread.worksheet.Worksheet, startCol: int, endCol: int
     ]
     queue_requests(requests)
 
-def group_rows(sheet: gspread.worksheet.Worksheet, startRow: int, endRow: int):
+def group_rows(sheet: gspread.worksheet.Worksheet, startRow: int, endRow: int, collapse: bool = True):
     requests = [
         {
             "addDimensionGroup": {
@@ -151,23 +151,26 @@ def group_rows(sheet: gspread.worksheet.Worksheet, startRow: int, endRow: int):
                     "endIndex": endRow
                 }
             }
-        },
-        {
-            "updateDimensionGroup": {
-                "dimensionGroup": {
-                    "range": {
-                        "dimension": "ROWS",
-                        "sheetId": sheet.id,
-                        "startIndex": startRow,
-                        "endIndex": endRow
-                    },
-                    "depth": 1,
-                    "collapsed": True
-                },
-                "fields": "*"
-            }
         }
     ]
+    if collapse:
+        requests.append(
+            {
+                "updateDimensionGroup": {
+                    "dimensionGroup": {
+                        "range": {
+                            "dimension": "ROWS",
+                            "sheetId": sheet.id,
+                            "startIndex": startRow,
+                            "endIndex": endRow
+                        },
+                        "depth": 1,
+                        "collapsed": True
+                    },
+                    "fields": "*"
+                }
+            }
+        )
     queue_requests(requests)
 
 def duplicate_column(sheet: gspread.worksheet.Worksheet, sourceCol: int, times: int = 1):
