@@ -1,8 +1,5 @@
 from typing import List, Tuple
 
-import asyncio
-from functools import partial
-
 from sheet import Sheet, Tab
 
 from utils import period_index, ensure, parallel_calls
@@ -30,6 +27,9 @@ class Command:
                 cmd_set(sheet, self.args[1:])
             case 'summarize':
                 cmd_summarize(sheet, self.args[1:])
+            case _:
+                print(f'? Command not recognized, ignored: {self.args[0].upper()}')
+
 
 def cmd_summarize(sheet: Sheet, args):
     assertMinArgs(args, 2)
@@ -47,21 +47,29 @@ def cmd_set(sheet: Sheet, args):
 
 def cmd_build(sheet: Sheet, args):
     if args[0] not in sheet.tabs:
-        raise(f'Tab "{args[0]} not found!')
+        raise(Exception(f'Tab "{args[0]} not found!'))
     sheet.tabs[args[0]].duplicate(clone = True,expand_periods = True)
     return
 
+from pprint import pprint
 def cmd_spawn(sheet: Sheet, args):
     if args[0] not in sheet.tabs:
-        raise(f'Tab "{args[0]} not found!')
-    targets = str.split(args[1],',')
+        raise(Exception(f'Tab "{args[0]} not found!'))
+    targets = [t.strip() for t in str.split(args[1],',')]
     if len(targets) > 1:
+        for i, target in enumerate(targets):
+            source_tab = sheet.tabs[args[0]]
+            gapi.duplicate_tab(source_tab.ref, f'-{target}', sheet.raw_tab_count + i)
+        sheet.flush()
+        # now register the new ones
         timer = Timer()
-        partials = []
-        for target in targets:
-            partials.append(partial(sheet.tabs[args[0]].duplicate, target.strip(), False, True))
-        asyncio.run(parallel_calls(*partials))
-        print(f'✔ Parallel calls done. {timer.check()}')
+        all_sheets = sheet.ref.worksheets()
+        for s in all_sheets:
+            for i, target in enumerate(targets):
+                if s.title == f'-{target}':
+                    source_tab.register_duplicate(s)
+
+        print(f'✔ New tab registrations done. {timer.check()}')
     else:
         sheet.tabs[args[0]].duplicate(newTitle = targets[0].strip(), expand_periods = True)
     return

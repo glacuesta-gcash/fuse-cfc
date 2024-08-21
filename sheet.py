@@ -108,9 +108,9 @@ class Sheet:
                                   )
 
         if self.steps_tab == None:
-            raise('No Steps tab found!')
+            raise(Exception('No Steps tab found!'))
         if self.summary_tab == None:
-            raise('No Summary tab found!')
+            raise(Exception('No Summary tab found!'))
         
     def register_summary_tab(self, sheet: gspread.worksheet.Worksheet, copyAttributesFrom: 'Tab' = None, cached_row_headers = [], cached_col_headers = []) -> 'SummaryTab':
         newTab = SummaryTab(
@@ -229,13 +229,13 @@ class Tab:
         timer = Timer()
         if clone is False:
             if newTitle == '':
-                raise(f'Title of new tab cannot be blank!')
+                raise(Exception(f'Title of new tab cannot be blank!'))
             if newTitle in self.sheet.tabs:
-                raise(f'Destination tab "{newTitle}" already exists!')
+                raise(Exception(f'Destination tab "{newTitle}" already exists!'))
         else:
             newTitle = self.ref.title[1:]
             if newTitle in self.sheet.tabs and self.sheet.tabs[newTitle].type == 'dynamic':
-                raise(f'Tab has already been cloned.')
+                raise(Exception(f'Tab has already been cloned.'))
         # duplicate_sheet is NOT cached because it immediately may be referenced
         newSheet = self.sheet.ref.duplicate_sheet(self.ref.id,new_sheet_name=f'{consts.TAB_PREFIX_DYNAMIC}{newTitle}',insert_sheet_index=self.sheet.raw_tab_count)
         self.sheet.raw_tab_count += 1
@@ -247,6 +247,11 @@ class Tab:
             newTab.expand_periods()
         return newTab
     
+    def register_duplicate(self, new_sheet):
+        gapi.update_tab_color(new_sheet, { 'red': 1, 'green': 0, 'blue': 0 })
+        newTab = self.sheet.register_tab(new_sheet, copyAttributesFrom=self)
+        newTab.expand_periods()
+
     def get_period_cells_for_row(self, row) -> List[gspread.cell.Cell]:
         cellList = self.ref.range(row, self.get_pcol(), row, self.get_pcol() + self.sheet.settings['periods'] - 1)
         return cellList
@@ -408,7 +413,7 @@ class SummaryTab:
         for i in range(0,len(groupRows)):
             gapi.update_cells(self.ref, groupRows[i], self.tab.get_gcol(), [groupVals[i]]) # put in [] to make it one row
 
-        print(f'done. {timer.check()}')
+        print(f'done. {timer.check()}\n')
 
     def period_group_count(self) -> int:
         return int((self.sheet.settings['periods'] - self.sheet.settings['summary-start'] + 1) / self.sheet.settings['summary-periods'])

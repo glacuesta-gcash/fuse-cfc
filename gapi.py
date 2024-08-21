@@ -78,12 +78,12 @@ def delete_tab(sheet: gspread.worksheet.Worksheet):
     ]
     queue_requests(requests)
 
-def update_tab_color(sheet: gspread.worksheet.Worksheet, color):
+def update_tab_color(sheet: gspread.worksheet.Worksheet | str, color):
     requests = [
         {
             "updateSheetProperties": {
                 "properties": {
-                    "sheetId": sheet.id,
+                    "sheetId": sheet if isinstance(sheet, str) else sheet.id,
                     # "title": title, # In this case, I think that this might not be required to be used.
                     "tabColor": color
                 },
@@ -205,15 +205,34 @@ def duplicate_row(sheet: gspread.worksheet.Worksheet, sourceRow: int, times: int
     ]
     queue_requests(requests)
 
+def duplicate_tab(sheet: gspread.worksheet.Worksheet, new_sheet_name: str, index: int, after: Callable = None):
+    requests = [
+        {
+            'duplicateSheet': {
+                'sourceSheetId': sheet.id,
+                'insertSheetIndex': index,
+                'newSheetName': new_sheet_name
+            }
+        }
+    ]
+    queue_requests(requests, [after])
+
 request_queue: List[any] = []
-def queue_requests(requests):
+callback_queue: List[Callable] = []
+def queue_requests(requests, callbacks: List[Callable] = None):
     global request_queue
+    global callback_queue
+
+    if callbacks == None:
+        callbacks = [None] * len(requests)
 
     request_queue.extend(requests)
+    callback_queue.extend(callbacks)
 
-from pprint import pprint
 def flush_requests(spreadsheet: gspread.spreadsheet.Spreadsheet):
     global request_queue
+    global callback_queue
+
     global service
 
     if len(request_queue) == 0:
@@ -231,7 +250,12 @@ def flush_requests(spreadsheet: gspread.spreadsheet.Spreadsheet):
     timer = Timer()
     response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet.id, body=body).execute()
 
+    for i, reply in enumerate(response['replies']):
+        if callback_queue[i] is not None:
+            callback_queue[i](reply)
+
     print(f'✔ ...done executing. {timer.check()}')
     
     request_queue = []
+    callback_queue = []
     

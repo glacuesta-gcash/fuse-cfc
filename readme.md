@@ -222,6 +222,8 @@ If using scenarios, one Summary tab will be generated for each scenario, labeled
 
 ### To-do
 
+- ✔ Order of tabs (i.e. in spawn) should be guaranteed despite parallel/batch duplication
+- Grouping and subtotaling in summary
 - ✔ Group periods, including last, sum, average
 - ✔ Multirow vars
 - ✔ :col specification in commands (map)
