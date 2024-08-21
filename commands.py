@@ -25,6 +25,8 @@ class Command:
                 cmd_bump(sheet, self.args[1:])
             case 'set':
                 cmd_set(sheet, self.args[1:])
+            case 'group':
+                cmd_group(sheet, self.args[1:])
             case 'summarize':
                 cmd_summarize(sheet, self.args[1:])
             case _:
@@ -55,23 +57,26 @@ from pprint import pprint
 def cmd_spawn(sheet: Sheet, args):
     if args[0] not in sheet.tabs:
         raise(Exception(f'Tab "{args[0]} not found!'))
-    targets = [t.strip() for t in str.split(args[1],',')]
-    if len(targets) > 1:
+    
+    targets_raw = [t.strip() for t in str.split(args[1],',')]
+    targets = [t.split(consts.FRIENDLY_NAME_DELIMITER) for t in targets_raw]
+    source_tab = sheet.tabs[args[0]]
+    for target in targets:
+        sheet.raw_tab_count += 1
+        gapi.duplicate_tab(source_tab.ref, f'-{target[0]}', sheet.raw_tab_count)
+    sheet.flush()
+    # now register the new ones
+    timer = Timer()
+    all_sheets = sheet.ref.worksheets()
+    for s in all_sheets:
         for i, target in enumerate(targets):
-            source_tab = sheet.tabs[args[0]]
-            gapi.duplicate_tab(source_tab.ref, f'-{target}', sheet.raw_tab_count + i)
-        sheet.flush()
-        # now register the new ones
-        timer = Timer()
-        all_sheets = sheet.ref.worksheets()
-        for s in all_sheets:
-            for i, target in enumerate(targets):
-                if s.title == f'-{target}':
-                    source_tab.register_duplicate(s)
+            friendly_name = target[0] if len(target) < 2 else target[1]
+            if s.title == f'-{target[0]}':
+                new_tab = source_tab.register_duplicate(s)
+                new_tab.set_friendly_name(friendly_name)
 
-        print(f'✔ New tab registrations done. {timer.check()}')
-    else:
-        sheet.tabs[args[0]].duplicate(newTitle = targets[0].strip(), expand_periods = True)
+    print(f'✔ New tab registrations done. {timer.check()}')
+
     return
 
 def parse_var(tab: Tab, arg: str) -> Tuple[Tuple[int, int], str]:
@@ -163,6 +168,12 @@ def cmd_bump(sheet: Sheet, args):
     # t.ref.update_cells(cells, 'USER_ENTERED')
     print(f'✔ Done.')
     return
+
+def cmd_group(sheet: Sheet, args):
+    assertMinArgs(args, 2)
+    label = args[0]
+    tabs = [t.strip() for t in args[1].split(',')]
+    sheet.add_tab_group(label, tabs)
 
 # Utilities
 

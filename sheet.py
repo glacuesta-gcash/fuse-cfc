@@ -8,7 +8,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 
-from utils import col_num_to_letter, ensure, parallel_calls
+from utils import col_num_to_letter, ensure, parallel_calls, row_col_to_cell_ref
 from timer import Timer
 import gapi
 import consts
@@ -47,6 +47,8 @@ class Sheet:
             'summary-start': 1
         }
         self.summary_vars: List[Tuple[str, str]] = []
+        self.summary_tab_order: List[Tab] = []
+        self.tab_groups: List[str] = []
 
         # sweep first to remove all transient tabs, to avoid triggering duplicate tab error on summary spawn
         # also, pull values from all input and summary tabs
@@ -83,10 +85,12 @@ class Sheet:
             tab_name = re_match.group(1)
             if consts.TAB_TITLE_STEPS in key:
                 full_cache[tab_name] = raw_tab_vals[key]
-            elif 'A1:A' in key:
+            # elif 'A1:A' in key:
+            elif re.search(r'A1:A\d+$', key) is not None:
                 # header column
                 col_headers_cache[tab_name] = [el[0] if el != [] else '' for el in raw_tab_vals[key]]
-            elif 'A1:' in key:
+            # elif 'A1:' in key:
+            elif re.search(r'A1:\w+1$', key) is not None:
                 # header row
                 row_headers_cache[tab_name] = raw_tab_vals[key][0] if len(raw_tab_vals[key]) > 0 else []
 
@@ -144,7 +148,23 @@ class Sheet:
         self.summary_vars.append((var, method))
 
     def summarize(self):
+        # finish out the summary tab order with all other dynamic tabs in their natural order
+        for tab in self.tabs.values():
+            if tab not in self.summary_tab_order and tab.type == 'dynamic':
+                self.summary_tab_order.append(tab)
+
         self.summary_tab.summarize()
+
+    def add_tab_group(self, label: str, subtabs: List[str]):
+        if label in self.tab_groups:
+            raise(Exception(f'Tab group {label} already defined!'))
+        self.tab_groups.append(label)
+        for t in subtabs:
+            tab = self.get_tab(t)
+            if tab.group is not None:
+                raise(Exception(f'Tab {t} already belongs to group {self.tabs[t].group}!'))
+            tab.group = label
+            self.summary_tab_order.append(tab)
 
 class Tab:
     def __init__(self, worksheet: gspread.worksheet.Worksheet, sheet: Sheet, copy_attributes_from: 'Tab' = None, cached_row_headers = [], cached_col_headers = []):
@@ -153,6 +173,8 @@ class Tab:
         self.sheet = sheet
         self.id = worksheet.id
         self.name = worksheet.title[1:]
+        self.friendly_name = self.name
+        self.group = None
         self.type = 'input' if worksheet.title[0] == consts.TAB_PREFIX_INPUT else 'dynamic'
 
         self.vars: Dict[str, Tuple[int, int]] = {} # label -> row, count
@@ -251,6 +273,10 @@ class Tab:
         gapi.update_tab_color(new_sheet, { 'red': 1, 'green': 0, 'blue': 0 })
         newTab = self.sheet.register_tab(new_sheet, copyAttributesFrom=self)
         newTab.expand_periods()
+        return newTab
+    
+    def set_friendly_name(self, new_friendly_name: str):
+        self.friendly_name = new_friendly_name
 
     def get_period_cells_for_row(self, row) -> List[gspread.cell.Cell]:
         cellList = self.ref.range(row, self.get_pcol(), row, self.get_pcol() + self.sheet.settings['periods'] - 1)
@@ -304,7 +330,7 @@ class StepsTab:
         self.cursor += 1
 
         return args
-
+from pprint import pprint
 class SummaryTab:
     def __init__(self, tab: Tab):
         self.tab = tab
@@ -319,14 +345,17 @@ class SummaryTab:
         timer = Timer()
         print(f'\n→ Performing summary...',end='')
 
-        groups = self.period_group_count()
+        pgroups = self.period_group_count()
 
-        groupRows: List[int] = []
-        groupVals: List[List[str]] = []
+        pgroupRows: List[int] = []
+        pgroupVals: List[List[str]] = []
 
         # sort summary_vars according to position on summary tab, to avoid outdated cell refs in cell updates
         # lowest first
         self.sheet.summary_vars.sort(key=lambda sv: self.tab.get_var_row(sv[0]))
+
+        # prepare tab groupings via mappings
+        # sort tabs by tab groupings as declared
 
         for sv in self.sheet.summary_vars:
             cellRefs: List[str] = []
@@ -335,58 +364,66 @@ class SummaryTab:
             # add rows
             baseRow = self.tab.get_var_row(sv[0])
 
+            # track groups with values
+            groups_touched: Dict[str,List[int]] = {} # list is start, end row
+            cur_group = None
+
             # walk each tab that has this variable
             row = 0
-            for t in self.sheet.tabs.values():
+            for t in self.sheet.summary_tab_order:
                 if t.type == 'dynamic':
                     if sv[0] in t.vars:
-                        # print(f'{t.name} has {sv[0]}')
+                        # yup this tab has this var
+
+                        if t.group != cur_group:
+                            # change group so tie the prev one off
+                            if cur_group is not None:
+                                groups_touched[cur_group][1] = baseRow + row
+
                         row += 1
-                        cellValues = t.get_period_cells_for_row(t.get_var_row(sv[0]))
-                        cellRefs.append(f'=\'{t.ref.title}\'!{cellValues[0].address}')
-                        tabNames.append(t.name)
-                        # calculate and store group summaries
-                        vs: List[str] = []
-                        for n in range(0, groups):
-                            if sv[1] == 'last':
-                                v = f'={self.period_group_ref_for_last(baseRow + row, n)}'
-                                pass
-                            elif sv[1] in ['sum','average']:
-                                # sum, average, or other worksheet function
-                                v = f'={sv[1]}({self.period_group_range_ref_for_row(baseRow + row, n)})'
-                            vs.append(v)
 
-                        # cached group values for later
-                        groupVals.append(vs)
-                        groupRows.append(baseRow + row)
+                        if t.group is not None and t.group not in groups_touched.keys():
+                            # new group
+                            # add spacer to house subtotal for group
+                            cellRefs.append('')
+                            tabNames.append(t.group)
+                            groups_touched[t.group] = [baseRow + row + 1, 0] # start collecting the next row, not this
+                            row += 1
+                            cur_group = t.group
 
-            if row > 0:
-                # having at least 1 row means we should also add a total
-                vs: List[str] = []
-                for n in range(0, groups):
-                    if sv[1] == 'last':
-                        v = f'={self.period_group_ref_for_last(baseRow, n)}'
-                        pass
-                    elif sv[1] in ['sum','average']:
-                        # sum, average, or other worksheet function
-                        v = f'={sv[1]}({self.period_group_range_ref_for_row(baseRow, n)})'
-                    vs.append(v)
+                        # this is expensive. made it not need it
+                        # cellValues = t.get_period_cells_for_row(t.get_var_row(sv[0]))
+                        cellRefs.append(f'=\'{t.ref.title}\'!{row_col_to_cell_ref(t.get_var_row(sv[0]), t.get_pcol())}')
+                        # indented if part of group
+                        tabNames.append((consts.GROUP_INDENT if t.group is not None else "") + t.friendly_name)
 
-                # cached group values for later
-                groupVals.append(vs)
-                groupRows.append(baseRow)
+            rows = row
 
-            gapi.duplicate_row(self.ref, baseRow, len(cellRefs))
+            # wrap up group tracking
+            if cur_group is not None:
+                groups_touched[cur_group][1] = baseRow + row
+
+            # do period groups for all rows added
+            if rows > 0:
+                for i in range(0, rows + 1):
+                    vs: List[str] = []
+                    for n in range(0, pgroups):
+                        if sv[1] == 'last':
+                            v = f'={self.period_group_ref_for_last(baseRow + i, n)}'
+                            pass
+                        elif sv[1] in ['sum','average']:
+                            # sum, average, or other worksheet function
+                            v = f'={sv[1]}({self.period_group_range_ref_for_row(baseRow + i, n)})'
+                        vs.append(v)
+
+                    # cached group values for later
+                    pgroupVals.append(vs)
+                    pgroupRows.append(baseRow + i)
+
+            gapi.duplicate_row(self.ref, baseRow, rows)
             for k in self.tab.vars:
                 if self.tab.get_var_row(k) > baseRow:
                     self.tab.nudge_var_row(k, len(cellRefs))
-
-            if row > 0:
-                # put sum in baseRow
-                col_letter = col_num_to_letter(self.tab.get_pcol())
-                v = f'=subtotal(9,{col_letter}{baseRow + 1}:{col_letter}{baseRow + 1 + row})'
-                self.tab.update_cell(baseRow, self.tab.get_pcol(), v)
-                # cache group values for later
 
             # add cell references
             cellValues = [[v] for v in cellRefs]
@@ -394,24 +431,39 @@ class SummaryTab:
             # self.summaryTab.ref.update_cells(cells, 'USER_ENTERED')
             gapi.update_cells(self.ref, baseRow + 1, self.tab.get_pcol(), cellValues) # skip baseRow as that's the orig
             gapi.update_cells(self.ref, baseRow + 1, 2, tabNameValues) # skip baseRow as that's the orig
-            # remove original row
+
+            # subtotals
+            if rows > 0:
+                # put sum in baseRow
+                col_letter = col_num_to_letter(self.tab.get_pcol())
+                v = f'=subtotal(9,{col_letter}{baseRow + 1}:{col_letter}{baseRow + rows})'
+                self.tab.update_cell(baseRow, self.tab.get_pcol(), v)
+
+                # now let's do the groups
+                for g in groups_touched.values():
+                    # periods
+                    v = f'=subtotal(9,{col_letter}{g[0]}:{col_letter}{g[1]})'
+                    self.tab.update_cell(g[0]-1, self.tab.get_pcol(), v)
+
+                    # collapse group rows
+                    gapi.group_rows(self.tab.ref, g[0]-1, g[1])
 
         # extend periods
-        # this will then also capture and copy-paste the cell refs
+        # this will then also capture and copy-paste the cell refs for the period cells (but doesn't work for period groups)
         self.tab.expand_periods()
 
         # collapse period cols
         gapi.group_columns(self.tab.ref, self.tab.get_pcol() - 1, self.tab.get_pcol() + self.sheet.settings['periods'] - 1)
 
-        # add summary col groups
-        if groups > 1:
-            gapi.duplicate_column(self.ref, self.tab.get_gcol(), groups - 1)
-        group_labels = [[self.period_group_label(n) for n in range(0, groups)]]
-        self.update_period_group_values_for_row(1, group_labels)
+        # add summary period group columns
+        if pgroups > 1:
+            gapi.duplicate_column(self.ref, self.tab.get_gcol(), pgroups - 1)
+        pgroup_labels = [[self.period_group_label(n) for n in range(0, pgroups)]]
+        self.update_period_group_values_for_row(1, pgroup_labels)
 
-        # add group summaries
-        for i in range(0,len(groupRows)):
-            gapi.update_cells(self.ref, groupRows[i], self.tab.get_gcol(), [groupVals[i]]) # put in [] to make it one row
+        # add period group summaries
+        for i in range(0,len(pgroupRows)):
+            gapi.update_cells(self.ref, pgroupRows[i], self.tab.get_gcol(), [pgroupVals[i]]) # put in [] to make it one row
 
         print(f'done. {timer.check()}\n')
 

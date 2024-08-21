@@ -11,6 +11,9 @@ def col_num_to_letter(col_num):
         letter = chr(65 + remainder) + letter
     return letter
 
+def row_col_to_cell_ref(row, col) -> str:
+    return f'{col_num_to_letter(col)}{row}'
+
 def ensure(condition, message):
     """Will fail if condition is false."""
     if condition == False:
