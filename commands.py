@@ -147,15 +147,19 @@ def cmd_trend(sheet: Sheet, args):
     startV = float(args[3])
     endV = float(args[4])
     method = args[5] if len(args) > 5 else 'linear'
+    if method not in ['linear', 'expo']:
+        method = 'linear'
+        print('! Warning: Defaulting method to linear')
     incAdd: float = (endV - startV) / periods if method == 'linear' else 0
     incMul: float = pow(endV / startV, 1 / periods) if method == 'expo' else 1 
-    cells: List[str] = [''] * t.sheet.settings['periods']
+
+    count = endP - startP + 1
+    cells: List[str] = [''] * count
     v: float = startV
     for i in range(len(cells)):
-        if startP <= i + 1 <= endP:
-            cells[i] = v
-            v = v * incMul + incAdd
-    t.update_period_cells(tv,cells)
+        cells[i] = v
+        v = v * incMul + incAdd
+    gapi.update_cells(t.ref, tv, t.get_pcol() + startP - 1, [cells])
     print(f'✔ Done.')
     return
 
