@@ -161,14 +161,16 @@ More than one new tab can be specified, by delimiting multiple names with a comm
 </details>
 
 #### Bump
-`bump [tab]/[var] [start period] [val]`
+`bump [tab] [var] [start period] [val]`
 
-Sets the value of the variable to val, starting at `[start period]` all the way to the end of the forecast.
+`bump [tab] [var] [start period]-[end period] [val]`
+
+Sets the value of the variable to val, starting at `[start period]` to `[end period]`, or all the way to the end of the forecast if no end period is given.
 
 > Note: Bump cannot be performed on a multi-row variable
 
 #### Trend
-`trend [tab]/[var] [start period] [end period] [start val] [end val] *[method]`
+`trend [tab] [var] [start period]-[end period] [start val] [end val] *[method]`
 
 Apply a trend (e.g. growth over time) onto a variable in a given tab. The variable will be blended from `[start val]` in `[start period]` to `[end val]` in `[end period]`, depending on the `[method]` (defaults to linear if omitted):
 - `linear` - Straight linear growth
@@ -182,6 +184,7 @@ Apply a trend (e.g. growth over time) onto a variable in a given tab. The variab
 Maps one variable from one tab (the source) to another variable in another tab (the target). The mapping is done via cell reference, to make it easier for others to trace the logic in the worksheet.
 
 `map [source tab] [source var]:[source col] [target tab] [target var]:[target col]`
+`map [source tab] [source var] [source col] [target tab] [target var] [target col]`
 
 Similar to the above pattern, although here, source and target columns are specified. Given this, only 1 value will be mapped, instead of the entire time horizon.
 

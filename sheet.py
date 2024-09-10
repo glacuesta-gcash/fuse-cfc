@@ -360,7 +360,6 @@ class SummaryTab:
         for sv in self.sheet.summary_vars:
             cellRefs: List[str] = []
             tabNames: List[str] = []
-
             # add rows
             baseRow = self.tab.get_var_row(sv[0])
 
@@ -374,7 +373,6 @@ class SummaryTab:
                 if t.type == 'dynamic':
                     if sv[0] in t.vars:
                         # yup this tab has this var
-
                         if t.group != cur_group:
                             # change group so tie the prev one off
                             if cur_group is not None:
@@ -389,7 +387,7 @@ class SummaryTab:
                             tabNames.append(t.group)
                             groups_touched[t.group] = [baseRow + row + 1, 0] # start collecting the next row, not this
                             row += 1
-                            cur_group = t.group
+                        cur_group = t.group
 
                         # this is expensive. made it not need it
                         # cellValues = t.get_period_cells_for_row(t.get_var_row(sv[0]))

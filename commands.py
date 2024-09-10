@@ -91,11 +91,18 @@ def parse_var(tab: Tab, arg: str) -> Tuple[Tuple[int, int], str]:
 def cmd_map(sheet: Sheet, args):
     # map [source tab] [source var] [target tab] [target var]
     # map [source tab] [source var]:[source col] [target tab] [target var]:[target col]
+    # map [source tab] [source var] [source col] [target tab] [target var] [target col]
     assertMinArgs(args, 4)
     s = sheet.get_tab(args[0])
-    t = sheet.get_tab(args[2])
-    sv, scol = parse_var(s, args[1])
-    tv, tcol = parse_var(t, args[3])
+    if len(args) == 4:
+        t = sheet.get_tab(args[2])
+        sv, scol = parse_var(s, args[1])
+        tv, tcol = parse_var(t, args[3])
+    else:
+        # 6 arg syntax
+        t = sheet.get_tab(args[3])
+        sv, scol = parse_var(s, f'{args[1]}:{args[2]}')
+        tv, tcol = parse_var(t, f'{args[4]}:{args[5]}')
 
     ensure(sv[1] == tv[1], f'Mismatch in multi-row variable heights: {args[0]}→{args[1]} and {args[2]}→{args[3]}.')
 
@@ -131,16 +138,15 @@ def cmd_map(sheet: Sheet, args):
         print(f'✔ Done.')
 
 def cmd_trend(sheet: Sheet, args):
-    assertMinArgs(args, 6)
+    assertMinArgs(args, 5)
     t = sheet.get_tab(args[0])
     tv, rows = t.get_var_rows(args[1])
     ensure(rows == 1, f'{args[1]} is a multi-row variable, trend cannot be performed on it.')
-    startP = period_index(args[2])
-    endP = period_index(args[3])
+    startP, endP = get_period_range(args[2], True)
     periods = endP - startP
-    startV = float(args[4])
-    endV = float(args[5])
-    method = args[6] if len(args) > 6 else 'linear'
+    startV = float(args[3])
+    endV = float(args[4])
+    method = args[5] if len(args) > 5 else 'linear'
     incAdd: float = (endV - startV) / periods if method == 'linear' else 0
     incMul: float = pow(endV / startV, 1 / periods) if method == 'expo' else 1 
     cells: List[str] = [''] * t.sheet.settings['periods']
@@ -153,18 +159,28 @@ def cmd_trend(sheet: Sheet, args):
     print(f'✔ Done.')
     return
 
+def get_period_range(v: str, range_required: bool = False) -> Tuple[int, int]:
+    if '-' in v:
+        ps = v.split('-')
+        return [period_index(ps[0]), period_index(ps[1])]
+    else:
+        ensure(range_required == False, f'{v} is not a multi-period range but this is required.')
+        return [period_index(v), period_index(v)]
+
 def cmd_bump(sheet: Sheet, args):
     assertMinArgs(args, 4)
     t = sheet.get_tab(args[0])
     tv, rows = t.get_var_rows(args[1])
     ensure(rows == 1, f'{args[1]} is a multi-row variable, bump cannot be performed on it.')
-    startP = period_index(args[2])
+
+    startP, endP = get_period_range(args[2])
+    count = endP - startP + 1
+
     v = float(args[3])
-    cells: List[str] = [''] * (t.sheet.settings['periods'] - startP + 1)
+    cells: List[str] = [''] * count
     for i in range(len(cells)):
-        if startP <= i + 1:
-            cells[i] = v
-    gapi.update_cells(t.ref, tv, t.get_pcol() + startP - 1, cells)
+        cells[i] = v
+    gapi.update_cells(t.ref, tv, t.get_pcol() + startP - 1, [cells])
     # t.ref.update_cells(cells, 'USER_ENTERED')
     print(f'✔ Done.')
     return
