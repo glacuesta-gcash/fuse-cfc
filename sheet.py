@@ -174,6 +174,7 @@ class Tab:
         self.id = worksheet.id
         self.name = worksheet.title[1:]
         self.friendly_name = self.name
+        self.prebaked_periods = False
         self.group = None
         self.type = 'input' if worksheet.title[0] == consts.TAB_PREFIX_INPUT else 'dynamic'
 
@@ -196,14 +197,23 @@ class Tab:
             self.pcol = self.get_pcol()
             self.gcol = self.get_gcol()
         else:
+            self.prebaked_periods = copy_attributes_from.prebaked_periods
             self.vars = copy_attributes_from.vars
             self.cols = copy_attributes_from.cols
             self.pcol = copy_attributes_from.pcol
             self.gcol = copy_attributes_from.gcol
         print(f'✔ Tab {self.ref.title} registered. {len(self.vars)} variable(s). Period column {"not " if self.pcol is None else ""}found. {timer.check()}')
+        if self.prebaked_periods == True:
+            print(f'  Prebaked period columns found at {self.pcol}')
 
     def get_pcol(self) -> int:
-        return None if 'p' not in self.cols else self.cols['p']
+        output = None if 'p' not in self.cols else self.cols['p']
+        if 'p1' in self.cols:
+            # found prebaked periods
+            output = self.cols['p1']
+            self.cols['p'] = output
+            self.prebaked_periods = True
+        return output
     def get_gcol(self) -> int:
         return None if 'g' not in self.cols else self.cols['g']
     
@@ -264,10 +274,10 @@ class Tab:
         # newSheet.update_tab_color('ff0000')
         gapi.update_tab_color(newSheet, { 'red': 1, 'green': 0, 'blue': 0 })
         print(f'✔ Tab "-{newTitle}" created from {self.ref.title}. {timer.check()}')
-        newTab = self.sheet.register_tab(newSheet, copyAttributesFrom=self)
-        if expand_periods:
-            newTab.expand_periods()
-        return newTab
+        new_tab = self.sheet.register_tab(newSheet, copyAttributesFrom=self)
+        if expand_periods and new_tab.prebaked_periods == False:
+            new_tab.expand_periods()
+        return new_tab
     
     def register_duplicate(self, new_sheet):
         gapi.update_tab_color(new_sheet, { 'red': 1, 'green': 0, 'blue': 0 })

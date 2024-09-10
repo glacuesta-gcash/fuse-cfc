@@ -49,6 +49,9 @@ The first row is reserved for special designations and labels. It may have 1 cel
 
 </details>
 
+#### Pre-baked period columns
+A tab may have "pre-baked" period columns if it already has columns labelled "p1" up to the number of periods (say, "p16"). In this case, the expansion step (duplicating the "p" column to fill out the forecast) will not be performed.
+
 #### Other columns
 There may also be other columns with other labels in the first row, such as "p0", "consumer-low", or any other arbitrary text. These can be useful for setting up initialization columns, to the left of the period column, which are set up with static values, while the period columns follow a different formula. This can also be used in assumption tabs to have parallel sets of variables for different use cases, target markets, etc.
 
