@@ -348,6 +348,22 @@ class SummaryTab:
         self.sheet = tab.sheet
 
         self.tab.type = 'summary'
+
+        new_tab_vars = {}
+        # capture summary_vars based on summary tab
+        print(self.tab.vars)
+        for key in self.tab.vars:
+            if consts.VAR_SUMMARY_METHOD_DELIMITER in key:
+                var, func = key.split(consts.VAR_SUMMARY_METHOD_DELIMITER)
+            else:
+                var = key
+                func = 'sum'
+            self.sheet.add_summary_var(var, func)
+            new_tab_vars[var] = self.tab.vars[key] # add a reference in the vars list with just the var name
+        self.tab.vars = new_tab_vars
+        print(self.tab.vars)
+        print(self.sheet.summary_vars)
+        # insert column where the names of the tabs will be placed
         gapi.insert_column(self.ref, 1, 1)
         self.tab.nudge_pcol(1)
 
