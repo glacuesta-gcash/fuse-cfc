@@ -39,15 +39,19 @@ def cmd_set(sheet: Sheet, args):
         sheet.settings[arg] = val
 
 def cmd_build(sheet: Sheet, args):
-    if args[0] not in sheet.tabs:
-        raise(Exception(f'Tab "{args[0]} not found!'))
-    sheet.tabs[args[0]].duplicate(clone = True,expand_periods = True)
+    t: str = args[0].strip()
+    target = t.split(consts.FRIENDLY_NAME_DELIMITER)
+    if target[0] not in sheet.tabs:
+        raise(Exception(f'Tab "{target[0]}" not found!'))
+    friendly_name = target[0] if len(target) < 2 else target[1]
+    new_tab = sheet.tabs[target[0]].duplicate(clone = True,expand_periods = True)
+    new_tab.set_friendly_name(friendly_name)
     return
 
 from pprint import pprint
 def cmd_spawn(sheet: Sheet, args):
     if args[0] not in sheet.tabs:
-        raise(Exception(f'Tab "{args[0]} not found!'))
+        raise(Exception(f'Tab "{args[0]}" not found!'))
     
     targets_raw = [t.strip() for t in str.split(args[1],',')]
     targets = [t.split(consts.FRIENDLY_NAME_DELIMITER) for t in targets_raw]
