@@ -1,4 +1,9 @@
 import asyncio
+import re
+
+def is_period(n: str) -> bool:
+    pattern = r'^p\d+$'
+    return bool(re.match(pattern, n))
 
 def period_index(s: str):
     """1-based, so p1 will return 1."""

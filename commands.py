@@ -2,7 +2,7 @@ from typing import List, Tuple
 
 from sheet import Sheet, Tab
 
-from utils import period_index, ensure, parallel_calls
+from utils import period_index, ensure, is_period
 import gapi
 import consts
 
@@ -27,18 +27,9 @@ class Command:
                 cmd_set(sheet, self.args[1:])
             case 'group':
                 cmd_group(sheet, self.args[1:])
-            case 'summarize':
-                cmd_summarize(sheet, self.args[1:])
             case _:
                 print(f'? Command not recognized, ignored: {self.args[0].upper()}')
 
-
-def cmd_summarize(sheet: Sheet, args):
-    assertMinArgs(args, 2)
-    if args[0] not in sheet.summary_tab.tab.vars:
-        print(f'Var {args[0]} does not exist in Summary tab!')
-        return
-    sheet.add_summary_var(args[0], args[1])
 
 def cmd_set(sheet: Sheet, args):
     arg = args[0].lower()
@@ -142,7 +133,7 @@ def cmd_trend(sheet: Sheet, args):
     t = sheet.get_tab(args[0])
     tv, rows = t.get_var_rows(args[1])
     ensure(rows == 1, f'{args[1]} is a multi-row variable, trend cannot be performed on it.')
-    startP, endP = get_period_range(args[2], True)
+    startP, endP = get_col_range(args[2], t, True)
     periods = endP - startP
     startV = float(args[3])
     endV = float(args[4])
@@ -159,17 +150,20 @@ def cmd_trend(sheet: Sheet, args):
     for i in range(len(cells)):
         cells[i] = v
         v = v * incMul + incAdd
-    gapi.update_cells(t.ref, tv, t.get_pcol() + startP - 1, [cells])
+    gapi.update_cells(t.ref, tv, startP, [cells])
     print(f'✔ Done.')
     return
 
-def get_period_range(v: str, range_required: bool = False) -> Tuple[int, int]:
+def get_col_range(v: str, t: Tab, range_required: bool = False) -> Tuple[int, int]:
     if '-' in v:
         ps = v.split('-')
-        return [period_index(ps[0]), period_index(ps[1])]
+        return [t.get_pcol() - 1 + period_index(ps[0]), t.get_pcol() - 1 + period_index(ps[1])]
     else:
         ensure(range_required == False, f'{v} is not a multi-period range but this is required.')
-        return [period_index(v), period_index(v)]
+        if is_period(v):
+            return [t.get_pcol() - 1 + period_index(v), t.get_pcol() - 1 + period_index(v)]
+        else:
+            return [t.cols[v], t.cols[v]]
 
 def cmd_bump(sheet: Sheet, args):
     assertMinArgs(args, 4)
@@ -177,15 +171,15 @@ def cmd_bump(sheet: Sheet, args):
     tv, rows = t.get_var_rows(args[1])
     ensure(rows == 1, f'{args[1]} is a multi-row variable, bump cannot be performed on it.')
 
-    startP, endP = get_period_range(args[2])
+    startP, endP = get_col_range(args[2], t)
     count = endP - startP + 1
 
     v = float(args[3])
     cells: List[str] = [''] * count
     for i in range(len(cells)):
         cells[i] = v
-    gapi.update_cells(t.ref, tv, t.get_pcol() + startP - 1, [cells])
-    # t.ref.update_cells(cells, 'USER_ENTERED')
+    gapi.update_cells(t.ref, tv, startP, [cells])
+
     print(f'✔ Done.')
     return
 
