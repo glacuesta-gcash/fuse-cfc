@@ -472,7 +472,7 @@ class SummaryTab:
                     # collapse group rows
                     gapi.group_rows(self.tab.ref, g[0]-1, g[1])
 
-                gapi.group_rows(self.tab.ref, baseRow, baseRow + rows, collapse = False)
+                gapi.group_rows(self.tab.ref, baseRow, baseRow + rows, collapse = True)
 
         # extend periods
         # this will then also capture and copy-paste the cell refs for the period cells (but doesn't work for period groups)
