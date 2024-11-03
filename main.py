@@ -1,4 +1,4 @@
-from sheet import Sheet
+from sheet import initialize_sheets, Sheet
 from commands import Command
 from timer import Timer
 import os
@@ -10,7 +10,8 @@ id_base =       '1s0Cnb5o2vbXAYZinCbsMEYx5vIS7JlHrxAsVB2cjqtU'
 id_aggressive = '1MB_DtVpHV5wImG3_qUj6nwdwxS72zta-wD4D8URe2NY'
 
 timer = Timer()
-sheet = Sheet(id_aggressive)
+initialize_sheets('./credentials.json')
+sheet = Sheet(id_orig)
 
 cmd = sheet.steps_tab.read_next_command()
 while cmd is not None:

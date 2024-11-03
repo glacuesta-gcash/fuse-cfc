@@ -20,12 +20,14 @@ scope = [
     "https://www.googleapis.com/auth/spreadsheets"
 ]
 
-# Add credentials to the account
-creds = Credentials.from_service_account_file('./credentials.json', scopes=scope)
-client = gspread.authorize(creds)
+def initialize_sheets(creds_file):
+    global creds, client
+    # Add credentials to the account
+    creds = Credentials.from_service_account_file(creds_file, scopes=scope)
+    client = gspread.authorize(creds)
 
-# for raw API calls
-gapi.set_service(build('sheets', 'v4', credentials=creds))
+    # for raw API calls
+    gapi.set_service(build('sheets', 'v4', credentials=creds))
 
 class Sheet:
     def __init__(self, sheetKey: str):
