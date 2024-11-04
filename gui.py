@@ -85,8 +85,11 @@ class TextRedirector:
 root = tk.Tk()
 root.title("Cascading Forecasts")
 
+root.update()
+
 # Set the icon
-icon_path = resource_path("icon-24.png")
+# for mac, use icon-256; windows, use icon-24
+icon_path = resource_path("icon-256.png")
 root.iconphoto(True, tk.PhotoImage(file=icon_path))
 
 # Variables to hold the inputs
@@ -122,4 +125,5 @@ plain_text_label.grid(row=5, columnspan=3, padx=10, pady=10)
 root.mainloop()
 
 # To compile via PyInstaller:
-# pyinstaller --onefile --windowed --icon=favicon-256.ico --add-data "icon-24.png;." gui.py
+# win: pyinstaller --onefile --windowed --icon=favicon-256.ico --add-data "icon-24.png;." gui.py
+# mac: pyinstaller --onefile --windowed --icon=icon-256.icns --add-data "icon-256.png:icon-24.png" gui.py
