@@ -8,6 +8,22 @@ from sheet import initialize_sheets, Sheet
 from commands import Command
 from timer import Timer
 
+def url_changed(*args):
+    print("url changed")
+    id = ""
+    g_url = gsheet_url_var.get()
+    if g_url:
+        print(f"new url {g_url}")
+        match = re.search(r"/d/([a-zA-Z0-9_\-]+)", g_url)
+        if match:
+            id = match.group(1)
+            print(f"new id {id}")
+    gsheet_id.set(id)
+    for widget in root.grid_slaves(row=2, column=2):
+        widget.destroy()  # Remove any existing checkmarks
+    if (gsheet_id.get() != ""):
+        tk.Label(root, text="✓", fg="green").grid(row=2, column=2, sticky="w")
+
 def run_commands():
     credentials_path = credentials_var.get()
     g_url = gsheet_url_var.get()
@@ -85,8 +101,6 @@ class TextRedirector:
 root = tk.Tk()
 root.title("Cascading Forecasts")
 
-root.update()
-
 # Set the icon
 # for mac, use icon-256; windows, use icon-24
 icon_path = resource_path("icon-256.png")
@@ -95,18 +109,23 @@ root.iconphoto(True, tk.PhotoImage(file=icon_path))
 # Variables to hold the inputs
 credentials_var = tk.StringVar()
 gsheet_url_var = tk.StringVar()
+gsheet_id = tk.StringVar(value="")
 
 # Credentials file field
 tk.Label(root, text="Credentials:").grid(row=0, column=0, sticky="e", padx=5, pady=5)
 tk.Entry(root, textvariable=credentials_var, width=50).grid(row=0, column=1, padx=5, pady=5)
 tk.Button(root, text="Browse", command=select_file).grid(row=0, column=2, padx=5, pady=5)
 
-# Hex ID field
+# Google Sheet URL field
 tk.Label(root, text="Google Sheet URL:").grid(row=1, column=0, sticky="e", padx=5, pady=5)
 tk.Entry(root, textvariable=gsheet_url_var, width=50).grid(row=1, column=1, padx=5, pady=5)
+gsheet_url_var.trace_add("write", url_changed)
+
+tk.Label(root, text="Google Sheet ID:").grid(row=2, column=0, sticky="e", padx=5, pady=5)
+tk.Label(root, textvariable=gsheet_id).grid(row=2, column=1, padx=5, pady=5, sticky="w")
 
 # Run button
-tk.Button(root, text="Run", command=run_commands).grid(row=2, column=1, pady=10)
+tk.Button(root, text="Run", command=run_commands).grid(row=3, column=0, columnspan=3, pady=10)
 
 # # Output text box
 # tk.Label(root, text="Output:").grid(row=3, column=0, sticky="nw", padx=5, pady=5)
@@ -126,4 +145,4 @@ root.mainloop()
 
 # To compile via PyInstaller:
 # win: pyinstaller --onefile --windowed --icon=favicon-256.ico --add-data "icon-24.png;." gui.py
-# mac: pyinstaller --onefile --windowed --icon=icon-256.icns --add-data "icon-256.png:icon-24.png" gui.py
+# mac: pyinstaller --onefile --windowed --icon=icon-256.icns --add-data "icon-256.png:." gui.py

@@ -43,7 +43,7 @@ If unspecified, `sum` will be used as the default.
 
 ## Input tabs
 
-#### Period column
+### Period column
 The first row is reserved for special designations and labels. It may have 1 cell labeled `p` (the "period column") which shall be the one duplicated in order to fill out the forecast periods. This column can contain formulas.
 
 <details>

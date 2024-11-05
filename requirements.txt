@@ -1,3 +1,4 @@
+altgraph==0.17.4
 cachetools==5.4.0
 certifi==2024.7.4
 charset-normalizer==3.3.2
@@ -10,14 +11,19 @@ googleapis-common-protos==1.63.2
 gspread==6.1.2
 httplib2==0.22.0
 idna==3.7
+macholib==1.16.3
 oauthlib==3.2.2
+packaging==24.1
 proto-plus==1.24.0
 protobuf==5.27.3
 pyasn1==0.6.0
 pyasn1_modules==0.4.0
+pyinstaller==6.11.0
+pyinstaller-hooks-contrib==2024.9
 pyparsing==3.1.2
 requests==2.32.3
 requests-oauthlib==2.0.0
 rsa==4.9
+setuptools==75.3.0
 uritemplate==4.1.1
 urllib3==2.2.2

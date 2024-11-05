@@ -7,3 +7,5 @@ dist/
 gui.spec
 
 .DS_Store
+
+mdpdf.log
